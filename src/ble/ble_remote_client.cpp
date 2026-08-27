@@ -5,17 +5,17 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 
-static ble_remote_state_t  s_ble_state = BLE_STATE_DISCONNECTED;
-static NimBLEClient*       s_client = nullptr;
-static NimBLERemoteChar*   s_char_cmd = nullptr;
-static NimBLERemoteChar*   s_char_aud = nullptr;
-static NimBLERemoteChar*   s_char_ctl = nullptr;
+static ble_remote_state_t              s_ble_state = BLE_STATE_DISCONNECTED;
+static NimBLEClient*                   s_client = nullptr;
+static NimBLERemoteCharacteristic*     s_char_cmd = nullptr;
+static NimBLERemoteCharacteristic*     s_char_aud = nullptr;
+static NimBLERemoteCharacteristic*     s_char_ctl = nullptr;
 
-static uint8_t             s_session_id = 0;
-static uint32_t            s_last_audio_ms = 0;
-static uint32_t            s_last_extend_ms = 0;
-static uint32_t            s_last_scan_ms = 0;
-static size_t              s_frame_size = AUDIO_DEFAULT_FRAME_BYTES;
+static uint8_t                         s_session_id = 0;
+static uint32_t                        s_last_audio_ms = 0;
+static uint32_t                        s_last_extend_ms = 0;
+static uint32_t                        s_last_scan_ms = 0;
+static size_t                          s_frame_size = AUDIO_DEFAULT_FRAME_BYTES;
 
 extern key_mapper_engine_t g_key_engine;
 
@@ -67,7 +67,7 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
         uint16_t ver = (pData[1] << 8) | pData[2];
         uint16_t fs = (pData[5] << 8) | pData[6];
         if (fs > 0) s_frame_size = fs;
-        Serial.printf("[ATVV] CAPS: ver=0x%04X, frame_size=%d\n", ver, s_frame_size);
+        Serial.printf("[ATVV] CAPS: ver=0x%04X, frame_size=%d\n", ver, (int)s_frame_size);
     }
     // AUDIO_SYNC: op == 0x0A
     else if (op == 0x0A && length >= 7) {

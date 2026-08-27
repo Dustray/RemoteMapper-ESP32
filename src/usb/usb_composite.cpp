@@ -29,11 +29,11 @@ void usb_composite_task(void) {
 
 bool usb_hid_keyboard_press(uint8_t modifier, uint8_t keycode) {
     if (!s_usb_ready) return false;
-    // Map modifier & keycode
     KeyReport report = {0};
     report.modifiers = modifier;
     report.keys[0] = keycode;
-    return s_keyboard.sendReport(&report);
+    s_keyboard.sendReport(&report);
+    return true;
 }
 
 bool usb_hid_keyboard_release(void) {
@@ -52,7 +52,8 @@ bool usb_hid_keyboard_tap(uint8_t modifier, uint8_t keycode) {
 
 bool usb_hid_consumer_press(uint16_t usage_code) {
     if (!s_usb_ready) return false;
-    return s_consumer.press(usage_code);
+    s_consumer.press(usage_code);
+    return true;
 }
 
 bool usb_hid_consumer_release(void) {
