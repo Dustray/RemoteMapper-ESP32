@@ -1,0 +1,11 @@
+.pio
+.vscode
+.idea
+*.pyc
+__pycache__/
+build/
+*.bin
+*.elf
+*.map
+*.hex
+*.log
