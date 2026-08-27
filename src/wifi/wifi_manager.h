@@ -1,0 +1,22 @@
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <Arduino.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void   wifi_manager_init(void);
+void   wifi_manager_task(void);
+String wifi_manager_get_ap_ip(void);
+String wifi_manager_get_sta_ip(void);
+bool   wifi_manager_is_sta_connected(void);
+int8_t wifi_manager_get_sta_rssi(void);
+String wifi_manager_scan_json(void);
+bool   wifi_manager_save_sta_config(const String& ssid, const String& password);
+
+#ifdef __cplusplus
+}
+#endif

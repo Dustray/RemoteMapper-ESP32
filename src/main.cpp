@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include "app_config.h"
 #include "version.h"
+#include "log/app_log.h"
+#include "wifi/wifi_manager.h"
+#include "web/web_server.h"
 #include "audio/audio_pipeline.h"
 #include "keymap/key_state_machine.h"
 #include "usb/usb_composite.h"
@@ -11,7 +14,7 @@ key_mapper_engine_t g_key_engine;
 
 // Task running on Core 0: BLE Central & Audio Decoding
 static void ble_task_core0(void* param) {
-    Serial.printf("[SYSTEM] BLE & Audio Task started on Core %d\n", xPortGetCoreID());
+    app_log("SYSTEM", "BLE & Audio Task started on Core %d", xPortGetCoreID());
     ble_remote_init();
 
     while (true) {
@@ -22,29 +25,37 @@ static void ble_task_core0(void* param) {
 
 void setup() {
     Serial.begin(115200);
-    delay(500);
+    delay(400);
 
-    Serial.println("==================================================");
-    Serial.printf(" %s v%s (%s)\n", FIRMWARE_NAME, FIRMWARE_VERSION, HARDWARE_TARGET);
-    Serial.println(" Xiaomi Remote Hardware Bridge (BLE -> USB)");
-    Serial.println("==================================================");
+    // 1. Initialize Global Log System
+    app_log_init();
+    app_log("SYSTEM", "==================================================");
+    app_log("SYSTEM", " %s v%s (%s)", FIRMWARE_NAME, FIRMWARE_VERSION, HARDWARE_TARGET);
+    app_log("SYSTEM", " Xiaomi Remote Hardware Bridge (BLE -> USB + Web)");
+    app_log("SYSTEM", "==================================================");
 
-    // 1. Initialize Audio Pipeline
+    // 2. Initialize Audio Pipeline
     audio_pipeline_init(&g_audio_pipeline);
-    Serial.println("[INIT] Audio Pipeline initialized (16kHz 16-bit Mono)");
+    app_log("INIT", "Audio Pipeline initialized (16kHz 16-bit Mono UAC 1.0)");
 
-    // 2. Initialize Key Engine with USB HID dispatcher callback
+    // 3. Initialize Key Engine with USB HID dispatcher callback
     key_engine_init(&g_key_engine, usb_hid_dispatch_action);
-    Serial.printf("[INIT] Key Engine initialized with %u mappings\n", (unsigned int)g_key_engine.binding_count);
+    app_log("INIT", "Key Engine initialized with %u mappings", (unsigned int)g_key_engine.binding_count);
 
-    // 3. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
+    // 4. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
     usb_composite_init();
-    Serial.println("[INIT] USB Composite Device ready (UAC Mic + HID Keyboard/Consumer)");
+    app_log("INIT", "USB Composite Device ready");
 
-    // 4. Initialize CLI Manager
+    // 5. Initialize Serial / CDC CLI Manager
     cli_manager_init();
 
-    // 5. Launch BLE Central Task pinned to Core 0
+    // 6. Initialize Wi-Fi AP + STA & Captive Portal
+    wifi_manager_init();
+
+    // 7. Initialize Embedded Web Server & REST APIs
+    web_server_init();
+
+    // 8. Launch BLE Central Task pinned to Core 0
     xTaskCreatePinnedToCore(
         ble_task_core0,
         "ble_audio_task",
@@ -55,7 +66,7 @@ void setup() {
         TASK_CORE_BLE
     );
 
-    Serial.println("[SYSTEM] System initialization complete. Ready!");
+    app_log("SYSTEM", "System initialization complete. Web available at http://192.168.4.1 or http://remotemapper.local");
 }
 
 void loop() {
@@ -67,7 +78,13 @@ void loop() {
     // 2. Service Key State Machine timers (long press, double click, repeat)
     key_engine_tick(&g_key_engine, now);
 
-    // 3. Service Serial / WebSerial CLI commands
+    // 3. Service Wi-Fi & DNS tasks
+    wifi_manager_task();
+
+    // 4. Service HTTP Web Server
+    web_server_task();
+
+    // 5. Service Serial / WebSerial CLI commands
     cli_manager_task();
 
     delay(2);
