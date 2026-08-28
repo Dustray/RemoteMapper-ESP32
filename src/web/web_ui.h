@@ -1,423 +1,848 @@
 #pragma once
-
 #include <Arduino.h>
 
-static const char INDEX_HTML[] PROGMEM = R"rawliteral(
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RemoteMapper 控制台</title>
-  <style>
-    :root {
-      --bg: #0d1117;
-      --card-bg: #161b22;
-      --card-border: #30363d;
-      --accent: #58a6ff;
-      --accent-glow: rgba(88, 166, 255, 0.2);
-      --success: #238636;
-      --success-glow: rgba(35, 134, 54, 0.3);
-      --warning: #d29922;
-      --danger: #da3633;
-      --text: #c9d1d9;
-      --text-bright: #f0f6fc;
-      --text-muted: #8b949e;
-      --radius: 8px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 16px; font-size: 14px; line-height: 1.5; }
-    .container { max-width: 960px; margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--card-border); margin-bottom: 20px; }
-    .logo { display: flex; align-items: center; gap: 10px; }
-    .logo-icon { font-size: 24px; background: var(--accent-glow); padding: 8px; border-radius: 8px; }
-    .logo h1 { font-size: 18px; color: var(--text-bright); }
-    .logo span { font-size: 12px; color: var(--text-muted); }
-    .status-pills { display: flex; gap: 8px; flex-wrap: wrap; }
-    .pill { font-size: 12px; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--card-bg); }
-    .pill.green { color: #3fb950; border-color: #238636; }
-    .pill.yellow { color: #d29922; border-color: #9e6a03; }
-    .pill.blue { color: #58a6ff; border-color: #1f6feb; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemoteMapper - 小米蓝牙遥控器硬件桥接器</title>
+    <style>
+        :root {
+            --bg-primary: #0b0f17;
+            --bg-card: #151d2a;
+            --bg-hover: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #243247;
+            --radius-card: 16px;
+        }
 
-    /* Tabs */
-    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); padding-bottom: 8px; overflow-x: auto; }
-    .tab-btn { background: none; border: none; color: var(--text-muted); padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: var(--radius); transition: all 0.2s; white-space: nowrap; }
-    .tab-btn:hover { color: var(--text-bright); background: rgba(255,255,255,0.05); }
-    .tab-btn.active { color: var(--accent); background: var(--accent-glow); }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); line-height: 1.5; padding-bottom: 60px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-    /* Grid & Cards */
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-    .card-title { font-size: 15px; color: var(--text-bright); font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-label { color: var(--text-muted); }
-    .stat-val { color: var(--text-bright); font-weight: 500; font-family: Consolas, monospace; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 24px; }
+        .logo { font-size: 24px; font-weight: 700; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .badge { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; border: 1px solid rgba(6, 182, 212, 0.3); }
 
-    /* Buttons & Inputs */
-    .btn { background: #21262d; color: var(--text-bright); border: 1px solid var(--card-border); padding: 8px 14px; border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn:hover { background: #30363d; border-color: #8b949e; }
-    .btn-primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
-    .btn-primary:hover { background: #388bfd; }
-    .btn-success { background: #238636; border-color: #2ea043; color: #fff; }
-    .btn-success:hover { background: #2ea043; }
-    .btn-danger { background: #da3633; border-color: #f85149; color: #fff; }
-    .btn-danger:hover { background: #f85149; }
-    .form-group { margin-bottom: 12px; }
-    .form-label { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 12px; }
-    .form-control { width: 100%; padding: 8px 12px; background: #0d1117; border: 1px solid var(--card-border); border-radius: var(--radius); color: var(--text-bright); font-size: 13px; outline: none; }
-    .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; }
+        .tab-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-muted); padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+        .tab-btn.active { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-    /* Log Box */
-    .log-box { background: #010409; border: 1px solid var(--card-border); border-radius: var(--radius); height: 360px; overflow-y: auto; padding: 12px; font-family: Consolas, monospace; font-size: 12px; line-height: 1.6; color: #7ee787; }
-    .log-line { margin-bottom: 2px; word-break: break-all; }
+        .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); padding: 20px; margin-bottom: 20px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
 
-    /* List items */
-    .dev-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #0d1117; border: 1px solid var(--card-border); border-radius: var(--radius); margin-bottom: 8px; }
-    .dev-name { font-weight: 600; color: var(--text-bright); }
-    .dev-mac { font-family: monospace; font-size: 12px; color: var(--text-muted); }
-    .key-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #0d1117; border: 1px solid var(--card-border); border-radius: var(--radius); margin-bottom: 8px; }
-    .key-badge { background: #21262d; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--accent); }
-    .key-desc { font-size: 12px; color: var(--text-muted); }
-  </style>
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; }
+        .stat-title { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .stat-val { font-size: 18px; font-weight: 700; color: #fff; }
+
+        /* Real Xiaomi Silver Metallic Remote Visualizer */
+        .remote-tester-container { display: flex; gap: 36px; align-items: flex-start; justify-content: center; flex-wrap: wrap; padding: 10px 0; }
+        
+        .real-remote-body {
+            width: 220px;
+            background: linear-gradient(180deg, #d4d4d8 0%, #e4e4e7 40%, #d4d4d8 70%, #a1a1aa 100%);
+            border: 2px solid #e4e4e7;
+            border-radius: 36px;
+            padding: 26px 18px 20px 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .remote-top-row { display: flex; width: 100%; justify-content: space-between; margin-bottom: 20px; }
+        .r-circle-btn {
+            width: 44px; height: 44px;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #d4d4d8; cursor: pointer;
+            transition: all 0.12s; font-size: 16px; user-select: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .r-circle-btn:hover { background: #3f3f46; color: #fff; transform: translateY(-1px); }
+        .r-circle-btn.pressed { background: #06b6d4 !important; color: #000 !important; transform: scale(0.92) !important; box-shadow: 0 0 20px #06b6d4 !important; }
+        .r-circle-btn.power { background: #27272a; color: #f87171; }
+        .r-circle-btn.voice { background: #27272a; color: #60a5fa; }
+
+        /* D-Pad Section */
+        .real-dpad-ring {
+            width: 154px; height: 154px;
+            border-radius: 50%;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            position: relative;
+            margin-bottom: 22px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+        }
+        .dpad-part { position: absolute; background: transparent; border: none; color: #71717a; cursor: pointer; font-size: 14px; transition: all 0.12s; display: flex; align-items: center; justify-content: center; }
+        .dpad-part:hover { color: #fff; }
+        .dpad-part.pressed { color: #06b6d4 !important; transform: scale(0.9); text-shadow: 0 0 12px #06b6d4; }
+        .d-up { top: 6px; width: 60px; height: 38px; }
+        .d-down { bottom: 6px; width: 60px; height: 38px; }
+        .d-left { left: 6px; width: 38px; height: 60px; }
+        .d-right { right: 6px; width: 38px; height: 60px; }
+        .d-center {
+            width: 66px; height: 66px; border-radius: 50%;
+            background: #18181b; border: 1px solid #3f3f46;
+            z-index: 2; font-size: 13px; font-weight: bold; color: #d4d4d8;
+        }
+        .d-center.pressed { background: #06b6d4 !important; color: #000 !important; box-shadow: 0 0 20px #06b6d4 !important; }
+
+        /* 2-Column Lower Controls */
+        .remote-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; margin-bottom: 24px; align-items: center; }
+        .ctrl-col-left { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+        .ctrl-col-right { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+
+        /* Integrated Volume Rocker */
+        .vol-pill {
+            width: 48px; height: 102px;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 24px;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .vol-half {
+            flex: 1; border: none; background: transparent;
+            color: #d4d4d8; cursor: pointer;
+            font-size: 18px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.12s;
+        }
+        .vol-half:hover { background: #3f3f46; color: #fff; }
+        .vol-half.pressed { background: #06b6d4 !important; color: #000 !important; }
+        .vol-half:first-child { border-bottom: 1px solid #3f3f46; }
+
+        .btn-tv-box { width: 48px; height: 48px; border-radius: 50%; font-size: 12px; font-weight: bold; }
+        .remote-footer { margin-top: 10px; display: flex; flex-direction: column; align-items: center; color: #71717a; font-size: 11px; }
+        .remote-footer .nfc-icon { width: 14px; height: 14px; border: 1px solid #71717a; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; margin-bottom: 14px; }
+
+        /* Key Event Monitor Panel */
+        .event-box { flex: 1; min-width: 320px; background: #090d16; border: 1px solid var(--border-color); border-radius: 14px; padding: 20px; }
+        .stat-badge { font-size: 26px; font-weight: 700; color: var(--accent-cyan); margin: 6px 0 14px 0; }
+        .event-field { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        .event-field span:first-child { color: var(--text-muted); }
+        .event-field span:last-child { font-weight: 600; font-family: monospace; color: #fff; }
+
+        /* Ultra-Simple Interactive Remap Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+        .modal { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); max-width: 540px; width: 100%; padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.6); }
+        
+        .trigger-tabs { display: flex; background: #090d16; border: 1px solid var(--border-color); border-radius: 10px; padding: 4px; gap: 4px; margin-bottom: 18px; }
+        .trigger-btn { flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 8px 0; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .trigger-btn.active { background: #1e293b; color: var(--accent-cyan); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+
+        .key-recorder-box {
+            border: 2px dashed var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: 12px;
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+            margin-bottom: 18px;
+        }
+        .key-recorder-box:focus, .key-recorder-box.recording {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.15);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        .key-badge-display { font-size: 24px; font-weight: 800; color: #fff; margin-top: 8px; min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        .kbd-chip { background: #0f172a; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 4px 12px; border-radius: 6px; font-size: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+
+        .preset-section { margin-top: 14px; }
+        .preset-title { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+        .preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .preset-chip {
+            background: #0b0f17; border: 1px solid var(--border-color); color: var(--text-main);
+            padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+        }
+        .preset-chip:hover { background: var(--bg-hover); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-hover); }
+        .btn-danger { background: var(--accent-red); }
+
+        .log-terminal { background: #000; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 12px; height: 380px; overflow-y: auto; color: #34d399; line-height: 1.6; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo">
-        <div class="logo-icon">🎙️</div>
-        <div>
-          <h1>RemoteMapper ESP32-S3</h1>
-          <span>小米蓝牙语音遥控器 硬件复合中继系统</span>
-        </div>
-      </div>
-      <div class="status-pills">
-        <div class="pill yellow" id="pill-ble">BLE: 搜索中</div>
-        <div class="pill blue" id="pill-wifi">Wi-Fi: AP+STA</div>
-        <div class="pill yellow" id="pill-sta-ip">IP: 192.168.4.1</div>
-      </div>
-    </header>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="logo">RemoteMapper</div>
+                <span class="badge">ESP32-S3 Hardware Bridge</span>
+            </div>
+            <div id="top-status" style="font-size: 13px; color: var(--text-muted);">正在连接硬件...</div>
+        </header>
 
-    <div class="tabs">
-      <button class="tab-btn active" onclick="showTab('dashboard')">📊 状态仪表盘</button>
-      <button class="tab-btn" onclick="showTab('ble')">📡 蓝牙管理与配对</button>
-      <button class="tab-btn" onclick="showTab('keymap')">🎮 按键配置</button>
-      <button class="tab-btn" onclick="showTab('wifi')">📶 Wi-Fi 配网</button>
-      <button class="tab-btn" onclick="showTab('logs')">📜 实时日志</button>
+        <!-- System Overview Cards -->
+        <div class="grid-4">
+            <div class="stat-card">
+                <div class="stat-title">蓝牙遥控器连接状态</div>
+                <div class="stat-val" id="stat-ble-state" style="color: var(--accent-green);">已连接</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="stat-ble-name">小米蓝牙语音遥控器</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Wi-Fi 局域网 IP</div>
+                <div class="stat-val" id="stat-sta-ip">192.168.2.179</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">热点: 192.168.4.1</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">音频流水线状态</div>
+                <div class="stat-val" id="stat-audio-frames">0 帧</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">16kHz 16-Bit Mono UAC 1.0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">系统内存 / 运行时间</div>
+                <div class="stat-val" id="stat-uptime">0s</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="stat-mem">SRAM: 200KB | PSRAM: 8MB</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-tester')">🎮 遥控器与改键测试</button>
+            <button class="tab-btn" onclick="switchTab('tab-ble')">📡 蓝牙配对管理</button>
+            <button class="tab-btn" onclick="switchTab('tab-logs')">📜 运行日志</button>
+            <button class="tab-btn" onclick="switchTab('tab-wifi')">📶 Wi-Fi 与系统配置</button>
+        </div>
+
+        <!-- TAB 1: Key Tester & Remapper Visualizer -->
+        <div id="tab-tester" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <span>🎮 真机 1:1 遥控器测试器（按压实体遥控器实时联动，点击按键即可修改按键映射）</span>
+                    <button class="btn btn-outline" style="font-size: 12px;" onclick="resetAllKeymaps()">恢复默认按键映射</button>
+                </div>
+                
+                <div class="remote-tester-container">
+                    <!-- Real Xiaomi Silver Metallic Remote DOM -->
+                    <div class="real-remote-body">
+                        <!-- Top Row: Power & Voice -->
+                        <div class="remote-top-row">
+                            <div class="r-circle-btn power" id="btn-0x66" onclick="openRemapModal(0x66, '电源键 (Power)')">⏻</div>
+                            <div class="r-circle-btn voice" id="btn-0x04" onclick="openRemapModal(0x04, '语音键 (Voice)')">🎙</div>
+                        </div>
+
+                        <!-- Middle: D-Pad -->
+                        <div class="real-dpad-ring">
+                            <button class="dpad-part d-up" id="btn-0x52" onclick="openRemapModal(0x52, '方向上 (Up)')">●</button>
+                            <button class="dpad-part d-down" id="btn-0x51" onclick="openRemapModal(0x51, '方向下 (Down)')">●</button>
+                            <button class="dpad-part d-left" id="btn-0x50" onclick="openRemapModal(0x50, '方向左 (Left)')">●</button>
+                            <button class="dpad-part d-right" id="btn-0x4F" onclick="openRemapModal(0x4F, '方向右 (Right)')">●</button>
+                            <button class="dpad-part d-center" id="btn-0x28" onclick="openRemapModal(0x28, '确定键 (OK)')">OK</button>
+                        </div>
+
+                        <!-- Lower: 2 Columns Matching Real Remote -->
+                        <div class="remote-controls-grid">
+                            <!-- Left Column: Back, Home, Menu -->
+                            <div class="ctrl-col-left">
+                                <div class="r-circle-btn" id="btn-0xF1" onclick="openRemapModal(0xF1, '返回键 (Back)')">&lt;</div>
+                                <div class="r-circle-btn" id="btn-0x24" onclick="openRemapModal(0x24, '主页键 (Home)')">⌂</div>
+                                <div class="r-circle-btn" id="btn-0x5D" onclick="openRemapModal(0x5D, '菜单键 (Menu)')">≡</div>
+                            </div>
+
+                            <!-- Right Column: Vol Rocker (+/-) & TV -->
+                            <div class="ctrl-col-right">
+                                <div class="vol-pill">
+                                    <button class="vol-half" id="btn-0x80" onclick="openRemapModal(0x80, '音量+ (Vol+)')">+</button>
+                                    <button class="vol-half" id="btn-0x81" onclick="openRemapModal(0x81, '音量- (Vol-)')">−</button>
+                                </div>
+                                <div class="r-circle-btn btn-tv-box" id="btn-0xC0" onclick="openRemapModal(0xC0, '电视键 (TV)')">📺 TV</div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Branding -->
+                        <div class="remote-footer">
+                            <div class="nfc-icon">N</div>
+                            <span style="font-weight: 700; letter-spacing: 1px; font-size: 13px;">xiaomi</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Key Event Telemetry -->
+                    <div class="event-box">
+                        <h3 style="margin-bottom: 12px; font-size: 15px; color: var(--accent-cyan);">⚡ 实时按键遥测状态</h3>
+                        <div class="stat-badge" id="live-key-name">等待按键...</div>
+                        
+                        <div class="event-field">
+                            <span>物理键码 (HID Raw Code)</span>
+                            <span id="live-key-code">0x00</span>
+                        </div>
+                        <div class="event-field">
+                            <span>按键状态</span>
+                            <span id="live-key-state" style="color: var(--text-muted);">IDLE</span>
+                        </div>
+                        <div class="event-field">
+                            <span>按下持续时间 (Hold Time)</span>
+                            <span id="live-key-dur">0 ms</span>
+                        </div>
+                        <div class="event-field">
+                            <span>触发动作 (Action Type)</span>
+                            <span id="live-act-type">ACTION_NONE</span>
+                        </div>
+                        <div class="event-field">
+                            <span>注入键值 (Dispatched Key)</span>
+                            <span id="live-act-val">None</span>
+                        </div>
+
+                        <div style="margin-top: 20px; padding: 12px; background: rgba(6,182,212,0.1); border-radius: 8px; border: 1px dashed rgba(6,182,212,0.3); font-size: 13px;">
+                            💡 <b>极简改键说明</b>：直接点击左侧任意遥控器按键，然后<b>直接在电脑键盘上按下您想映射的按键或快捷键</b>（或点选常用多媒体功能），点击保存即可！
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: BLE Device Radar -->
+        <div id="tab-ble" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span>📡 蓝牙设备雷达与遥控器配对</span>
+                    <button class="btn" onclick="scanBleDevices()">🔍 扫描附近蓝牙设备</button>
+                </div>
+                <div id="ble-dev-list" style="margin-top: 14px;">点击上方按钮扫描附近的蓝牙遥控器...</div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Runtime Logs -->
+        <div id="tab-logs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span>📜 ESP32-S3 实时运行日志 (保留完整 250 行)</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="refreshLogs()">🔄 刷新</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="clearLogs()">🧹 清空</button>
+                    </div>
+                </div>
+                <div class="log-terminal" id="log-terminal">正在加载运行日志...</div>
+            </div>
+        </div>
+
+        <!-- TAB 4: Wi-Fi & System -->
+        <div id="tab-wifi" class="tab-content">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span>📶 Wi-Fi 网络配置与附近热点搜索</span>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="scanWifiNetworks()">🔍 搜索 Wi-Fi</button>
+                    </div>
+                    <div id="wifi-scan-list" style="margin-bottom: 16px; font-size: 13px; color: var(--text-muted);">
+                        点击右上角“搜索 Wi-Fi”可扫描附近 2.4GHz 无线网络，点击即可自动填入 SSID。
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Wi-Fi 名称 (SSID)</label>
+                        <input type="text" id="wifi-ssid" placeholder="输入或从上方选择您的 Wi-Fi 名称" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
+                    </div>
+                    <div class="form-group" style="margin-top:14px;">
+                        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Wi-Fi 密码</label>
+                        <input type="password" id="wifi-pass" placeholder="输入 Wi-Fi 密码" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
+                    </div>
+                    <button class="btn" style="width: 100%; margin-top:16px;" onclick="saveWifi()">💾 保存并连接 Wi-Fi</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span>⚙️ 系统控制</span></div>
+                    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+                        当前固件支持 UAC 1.0 USB 麦克风录音设备与标准 HID 键盘/多媒体复合注入。
+                    </p>
+                    <button class="btn btn-danger" style="width: 100%;" onclick="restartDevice()">🔄 重启 ESP32-S3 设备</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- 1. Dashboard Tab -->
-    <div id="tab-dashboard" class="tab-content active">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">🎙️ BLE 遥控器与音频流</div>
-          <div class="stat-row"><span class="stat-label">连接状态</span><span class="stat-val" id="stat-ble-state">Scanning...</span></div>
-          <div class="stat-row"><span class="stat-label">已绑定遥控器</span><span class="stat-val" id="stat-bound-remote">未绑定</span></div>
-          <div class="stat-row"><span class="stat-label">音频规格</span><span class="stat-val">16kHz 16-bit Mono (UAC 1.0)</span></div>
-          <div class="stat-row"><span class="stat-label">已解码音频帧</span><span class="stat-val" id="stat-frames">0 帧</span></div>
-          <div class="stat-row"><span class="stat-label">已推流采样点</span><span class="stat-val" id="stat-samples">0 点</span></div>
-          <div style="margin-top: 14px; display: flex; gap: 8px;">
-            <button class="btn btn-primary" onclick="showTab('ble')">📡 前往蓝牙配对</button>
-            <button class="btn" onclick="apiAction('/api/ble/reconnect')">🔄 重新扫描</button>
-          </div>
-        </div>
+    <!-- Ultra-Simple Interactive Remap Modal -->
+    <div class="modal-overlay" id="remap-modal" onclick="if(event.target === this) closeRemapModal()">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <h3 style="font-size: 18px;" id="modal-title">设置按键映射</h3>
+                <span id="modal-vk-badge" style="font-size: 12px; color: var(--accent-cyan); font-family: monospace;">0x00</span>
+            </div>
 
-        <div class="card">
-          <div class="card-title">⚡ 硬件与系统资源</div>
-          <div class="stat-row"><span class="stat-label">主控芯片</span><span class="stat-val">ESP32-S3 N16R8</span></div>
-          <div class="stat-row"><span class="stat-label">运行时间</span><span class="stat-val" id="stat-uptime">0s</span></div>
-          <div class="stat-row"><span class="stat-label">空闲堆内存 (Heap)</span><span class="stat-val" id="stat-heap">0 KB</span></div>
-          <div class="stat-row"><span class="stat-label">空闲 PSRAM</span><span class="stat-val" id="stat-psram">0 KB</span></div>
-          <div style="margin-top: 14px; display: flex; gap: 8px;">
-            <button class="btn btn-danger" onclick="apiAction('/api/system/restart')">⚠️ 重启 ESP32</button>
-          </div>
-        </div>
-      </div>
+            <!-- Trigger Mode Selector -->
+            <div class="trigger-tabs">
+                <button class="trigger-btn active" id="trig-click" onclick="setModalTrigger('click')">短按 (Click)</button>
+                <button class="trigger-btn" id="trig-long" onclick="setModalTrigger('long')">长按 (Long Press)</button>
+                <button class="trigger-btn" id="trig-double" onclick="setModalTrigger('double')">双击 (Double Click)</button>
+            </div>
 
-      <div class="card">
-        <div class="card-title">🌐 网络访问信息</div>
-        <div class="stat-row"><span class="stat-label">AP 热点 IP (直连)</span><span class="stat-val">192.168.4.1 (SSID: RemoteMapper-AP)</span></div>
-        <div class="stat-row"><span class="stat-label">家庭局域网 IP (STA)</span><span class="stat-val" id="stat-sta-ip">获取中...</span></div>
-        <div class="stat-row"><span class="stat-label">局域网 mDNS 快速访问</span><span class="stat-val"><a href="http://remotemapper.local" target="_blank" style="color:var(--accent);">http://remotemapper.local</a></span></div>
-      </div>
+            <!-- Keyboard Direct Capture Box -->
+            <div class="key-recorder-box" id="key-recorder-box" tabindex="0" onclick="startKeyboardRecording()">
+                <div style="font-size: 13px; color: var(--text-muted);">
+                    ⌨️ <b>直接在键盘上按下任意按键或快捷键</b>（支持单键与 Ctrl/Alt/Win/Shift 组合键）
+                </div>
+                <div class="key-badge-display" id="recorded-badge-display">
+                    <span style="color: var(--text-muted); font-size: 16px; font-weight: normal;">点击此处开始按键录制...</span>
+                </div>
+            </div>
+
+            <!-- Special Features & Multimedia Shortcuts -->
+            <div class="preset-section">
+                <div class="preset-title">⚡ 一键设置常用多媒体与系统功能</div>
+                <div class="preset-chips">
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 545, '🔊 音量 +')">🔊 音量 +</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 546, '🔉 音量 -')">🔉 音量 -</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 547, '🔇 静音')">🔇 静音</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 516, '⏯️ 播放/暂停')">⏯️ 播放/暂停</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 537, '⏭️ 下一曲')">⏭️ 下一曲</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 538, '⏮️ 上一曲')">⏮️ 上一曲</button>
+                    <button class="preset-chip" onclick="applySpecialAction(1, 8, 7, 0, '💻 显示桌面 (Win+D)')">💻 显示桌面 (Win+D)</button>
+                    <button class="preset-chip" onclick="applySpecialAction(1, 4, 43, 0, '🔀 任务切换 (Alt+Tab)')">🔀 任务切换 (Alt+Tab)</button>
+                    <button class="preset-chip" onclick="applySpecialAction(1, 8, 11, 0, '🎤 语音听写 (Win+H)')">🎤 语音听写 (Win+H)</button>
+                    <button class="preset-chip" onclick="applySpecialAction(1, 0, 75, 0, '📽️ PPT下一页 (PageDown)')">📽️ PPT下一页</button>
+                    <button class="preset-chip" onclick="applySpecialAction(1, 0, 78, 0, '📽️ PPT上一页 (PageUp)')">📽️ PPT上一页</button>
+                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 530, '🌙 系统休眠')">🌙 系统休眠</button>
+                </div>
+            </div>
+
+            <!-- Advanced Manual Key Code Input Toggle -->
+            <div style="margin-top: 16px;">
+                <details style="font-size: 12px; color: var(--text-muted);">
+                    <summary style="cursor: pointer; margin-bottom: 8px;">🛠️ 高级选项：直接输入 USB HID 键码或修饰键</summary>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px;">
+                        <div>
+                            <label style="display:block; margin-bottom:4px;">动作类型</label>
+                            <select id="adv-act-type" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
+                                <option value="1">键盘点击 (TAP)</option>
+                                <option value="2">键盘长按 (HOLD)</option>
+                                <option value="4">多媒体 (Consumer)</option>
+                                <option value="7">语音对讲 (Voice)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:4px;">修饰键 (Mod)</label>
+                            <input type="number" id="adv-mod" value="0" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:4px;">按键码 (Key/Cons)</label>
+                            <input type="number" id="adv-code" value="0" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <button class="btn btn-outline" style="font-size: 12px; color: var(--accent-red); border-color: rgba(239,68,68,0.3);" onclick="clearCurrentTriggerBinding()">🗑️ 清空该触发</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" onclick="closeRemapModal()">取消</button>
+                    <button class="btn" onclick="saveRemapConfig()">💾 保存映射</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- 2. BLE Management Tab -->
-    <div id="tab-ble" class="tab-content">
-      <div class="card">
-        <div class="card-title">
-          <span>🔗 当前绑定设备</span>
-          <button class="btn btn-danger" onclick="unpairBle()">❌ 解除绑定</button>
-        </div>
-        <div class="stat-row"><span class="stat-label">设备名称</span><span class="stat-val" id="ble-info-name">未连接</span></div>
-        <div class="stat-row"><span class="stat-label">MAC 地址</span><span class="stat-val" id="ble-info-mac">--</span></div>
-      </div>
+    <script>
+        let currentKeymap = { bindings: [] };
+        let editingKey = 0;
+        let activeTrigger = 'click';
+        let currentActionState = { type: 1, mod: 0, key: 0, cons: 0, text: '无' };
+        let clearHighlightTimer = null;
 
-      <div class="card">
-        <div class="card-title">
-          <span>📡 扫描周围蓝牙设备 (手动配对)</span>
-          <button class="btn btn-primary" id="btn-scan-ble" onclick="scanBle()">🔍 开始扫描 (4秒)</button>
-        </div>
-        <p style="color:var(--text-muted); margin-bottom: 10px;">
-          提示：请先长按遥控器 <strong>主页键 + 菜单键</strong> 约 3 秒（指示灯闪烁），然后点击上方扫描按钮，在下方列表中点击“连接”。
-        </p>
-        <div id="ble-list">
-          <p style="color:var(--text-muted); padding: 12px; text-align: center;">暂未扫描，请点击上方按钮扫描周围蓝牙遥控器...</p>
-        </div>
-      </div>
-    </div>
+        const KEY_NAMES = {
+            0x66: '电源键 (Power)',
+            0xFF: '电源键 (Power)',
+            0x04: '语音键 (Voice)',
+            0x52: '方向上 (Up)',
+            0x51: '方向下 (Down)',
+            0x50: '方向左 (Left)',
+            0x4F: '方向右 (Right)',
+            0x28: '确定键 (OK)',
+            0xF1: '返回键 (Back)',
+            0x24: '主页键 (Home)',
+            0x4A: '主页键 (Home)',
+            0x5D: '菜单键 (Menu)',
+            0x65: '菜单键 (Menu)',
+            0x80: '音量+ (Vol+)',
+            0x81: '音量- (Vol-)',
+            0xC0: '电视键 (TV)',
+            0x35: '电视键 (TV)'
+        };
 
-    <!-- 3. Keymap Tab -->
-    <div id="tab-keymap" class="tab-content">
-      <div class="card">
-        <div class="card-title">
-          <span>🎮 物理按键映射规则</span>
-          <button class="btn btn-primary" onclick="resetKeymap()">恢复默认映射</button>
-        </div>
-        <div class="key-item">
-          <div><strong>音量加 (+) / 音量减 (-)</strong><div class="key-desc">0x80 / 0x81 (原始 Android 键码)</div></div>
-          <div class="key-badge">USB Consumer Vol Up/Down (连续连发)</div>
-        </div>
-        <div class="key-item">
-          <div><strong>返回键 (Back)</strong><div class="key-desc">0xF1 (原始 Android 键码)</div></div>
-          <div class="key-badge">USB Consumer AC Back (浏览器/播放器后退)</div>
-        </div>
-        <div class="key-item">
-          <div><strong>语音键 (Voice HTT)</strong><div class="key-desc">按住说话 / 松开结束</div></div>
-          <div class="key-badge">UAC 麦克风音频流 + 注入 RAlt+Comma</div>
-        </div>
-        <div class="key-item">
-          <div><strong>电源键 (Power)</strong><div class="key-desc">单击 / 长按</div></div>
-          <div class="key-badge">单击: Alt+Tab | 长按: Sleep</div>
-        </div>
-        <div class="key-item">
-          <div><strong>主页键 (Home)</strong><div class="key-desc">单击</div></div>
-          <div class="key-badge">USB Keyboard Win+D (显示桌面)</div>
-        </div>
-        <div class="key-item">
-          <div><strong>菜单键 (Menu)</strong><div class="key-desc">单击</div></div>
-          <div class="key-badge">USB Keyboard Space (播放/暂停)</div>
-        </div>
-        <div class="key-item">
-          <div><strong>直播/TV 键</strong><div class="key-desc">单击</div></div>
-          <div class="key-badge">USB Keyboard F8</div>
-        </div>
-      </div>
-    </div>
+        // DOM Key -> USB HID Keyboard Code Map
+        const DOM_TO_HID = {
+            'KeyA': 0x04, 'KeyB': 0x05, 'KeyC': 0x06, 'KeyD': 0x07, 'KeyE': 0x08,
+            'KeyF': 0x09, 'KeyG': 0x0A, 'KeyH': 0x0B, 'KeyI': 0x0C, 'KeyJ': 0x0D,
+            'KeyK': 0x0E, 'KeyL': 0x0F, 'KeyM': 0x10, 'KeyN': 0x11, 'KeyO': 0x12,
+            'KeyP': 0x13, 'KeyQ': 0x14, 'KeyR': 0x15, 'KeyS': 0x16, 'KeyT': 0x17,
+            'KeyU': 0x18, 'KeyV': 0x19, 'KeyW': 0x1A, 'KeyX': 0x1B, 'KeyY': 0x1C, 'KeyZ': 0x1D,
+            'Digit1': 0x1E, 'Digit2': 0x1F, 'Digit3': 0x20, 'Digit4': 0x21, 'Digit5': 0x22,
+            'Digit6': 0x23, 'Digit7': 0x24, 'Digit8': 0x25, 'Digit9': 0x26, 'Digit0': 0x27,
+            'Enter': 0x28, 'Escape': 0x29, 'Backspace': 0x2A, 'Tab': 0x2B, 'Space': 0x2C,
+            'Minus': 0x2D, 'Equal': 0x2E, 'BracketLeft': 0x2F, 'BracketRight': 0x30,
+            'Backslash': 0x31, 'Semicolon': 0x33, 'Quote': 0x34, 'Backquote': 0x35,
+            'Comma': 0x36, 'Period': 0x37, 'Slash': 0x38, 'CapsLock': 0x39,
+            'F1': 0x3A, 'F2': 0x3B, 'F3': 0x3C, 'F4': 0x3D, 'F5': 0x3E, 'F6': 0x3F,
+            'F7': 0x40, 'F8': 0x41, 'F9': 0x42, 'F10': 0x43, 'F11': 0x44, 'F12': 0x45,
+            'PrintScreen': 0x46, 'ScrollLock': 0x47, 'Pause': 0x48, 'Insert': 0x49,
+            'Home': 0x4A, 'PageUp': 0x4B, 'Delete': 0x4C, 'End': 0x4D, 'PageDown': 0x4E,
+            'ArrowRight': 0x4F, 'ArrowLeft': 0x50, 'ArrowDown': 0x51, 'ArrowUp': 0x52
+        };
 
-    <!-- 4. Wi-Fi Tab -->
-    <div id="tab-wifi" class="tab-content">
-      <div class="card">
-        <div class="card-title">📶 连接家庭局域网 Wi-Fi</div>
-        <p style="color:var(--text-muted); margin-bottom: 12px;">配置连接路由器后，您可以在家庭局域网内任意手机或电脑通过 <strong>http://remotemapper.local</strong> 直接打开本配置面板。</p>
-        <div class="form-group">
-          <label class="form-label">周围 2.4GHz Wi-Fi</label>
-          <div style="display:flex; gap:8px;">
-            <select class="form-control" id="wifi-ssid-select" onchange="document.getElementById('wifi-ssid').value = this.value">
-              <option value="">-- 点击右侧扫描获取列表 --</option>
-            </select>
-            <button class="btn" onclick="scanWifi()">🔍 扫描</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Wi-Fi 名称 (SSID)</label>
-          <input type="text" class="form-control" id="wifi-ssid" placeholder="输入或上方选择 Wi-Fi 名称">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Wi-Fi 密码</label>
-          <input type="password" class="form-control" id="wifi-pass" placeholder="输入 Wi-Fi 密码">
-        </div>
-        <button class="btn btn-success" onclick="saveWifi()">💾 保存并连接</button>
-      </div>
-    </div>
-
-    <!-- 5. Logs Tab -->
-    <div id="tab-logs" class="tab-content">
-      <div class="card">
-        <div class="card-title">
-          <span>📜 ESP32-S3 实时运行日志</span>
-          <div style="display:flex; gap:8px;">
-            <button class="btn" onclick="refreshLogs()">🔄 刷新</button>
-            <button class="btn btn-danger" onclick="clearLogs()">🧹 清空</button>
-          </div>
-        </div>
-        <div class="log-box" id="log-container">加载日志中...</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    function showTab(id) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      event.target.classList.add('active');
-      document.getElementById('tab-' + id).classList.add('active');
-      if (id === 'logs') refreshLogs();
-      if (id === 'ble') fetchBleInfo();
-    }
-
-    async function fetchStatus() {
-      try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        const stateText = data.ble_state === 3 ? 'Connected (已连接)' : (data.ble_state === 4 ? 'Talking (语音推流中)' : 'Scanning / Disconnected');
-        document.getElementById('stat-ble-state').innerText = stateText;
-        document.getElementById('pill-ble').innerText = 'BLE: ' + (data.ble_state >= 3 ? '已连接' : '未连接');
-        document.getElementById('pill-ble').className = 'pill ' + (data.ble_state >= 3 ? 'green' : 'yellow');
-        document.getElementById('stat-frames').innerText = (data.frames_decoded || 0) + ' 帧';
-        document.getElementById('stat-samples').innerText = (data.samples_pushed || 0) + ' 点';
-        document.getElementById('stat-uptime').innerText = (data.uptime_sec || 0) + ' 秒';
-        document.getElementById('stat-heap').innerText = Math.round((data.free_heap || 0) / 1024) + ' KB';
-        document.getElementById('stat-psram').innerText = Math.round((data.free_psram || 0) / 1024) + ' KB';
-        document.getElementById('stat-sta-ip').innerText = data.sta_ip || 'Disconnected';
-        document.getElementById('pill-sta-ip').innerText = 'IP: ' + (data.sta_ip || '192.168.4.1');
-      } catch (e) {}
-    }
-
-    async function fetchBleInfo() {
-      try {
-        const res = await fetch('/api/ble/info');
-        const data = await res.json();
-        document.getElementById('ble-info-name').innerText = (data.name || '未连接') + (data.connected ? ' (在线)' : '');
-        document.getElementById('ble-info-mac').innerText = data.mac || (data.bound_mac ? data.bound_mac + ' (已保存)' : '--');
-        document.getElementById('stat-bound-remote').innerText = data.name ? (data.name + ' (' + data.mac + ')') : '未绑定';
-      } catch (e) {}
-    }
-
-    async function scanBle() {
-      const btn = document.getElementById('btn-scan-ble');
-      const box = document.getElementById('ble-list');
-      btn.innerText = '⏳ 正在扫描中...';
-      btn.disabled = true;
-      box.innerHTML = '<p style="color:var(--accent); padding:12px; text-align:center;">正在扫描周围蓝牙设备 (4秒)，请确保遥控器处于配对闪烁状态...</p>';
-
-      try {
-        const res = await fetch('/api/ble/scan');
-        const data = await res.json();
-        box.innerHTML = '';
-        if (!data.devices || data.devices.length === 0) {
-          box.innerHTML = '<p style="color:var(--warning); padding:12px; text-align:center;">未发现蓝牙设备，请长按遥控器 主页+菜单 键后重试！</p>';
-        } else {
-          data.devices.forEach(dev => {
-            const isMi = dev.name.includes('小米') || dev.name.includes('MI') || dev.name.includes('Xiaomi') || dev.name.includes('Remote');
-            const div = document.createElement('div');
-            div.className = 'dev-item';
-            div.innerHTML = `
-              <div>
-                <div class="dev-name">${dev.name} ${isMi ? '⭐' : ''}</div>
-                <div class="dev-mac">${dev.mac} | 信号: ${dev.rssi} dBm</div>
-              </div>
-              <button class="btn btn-primary" onclick="connectBle('${dev.mac}')">🔗 连接此设备</button>
-            `;
-            box.appendChild(div);
-          });
+        function switchTab(id) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(id).classList.add('active');
         }
-      } catch (e) {
-        box.innerHTML = '<p style="color:var(--danger); padding:12px; text-align:center;">扫描出错，请重试！</p>';
-      } finally {
-        btn.innerText = '🔍 开始扫描 (4秒)';
-        btn.disabled = false;
-      }
-    }
 
-    async function connectBle(mac) {
-      if (confirm('确定要连接并绑定 MAC: ' + mac + ' 吗？')) {
-        const res = await fetch('/api/ble/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mac })
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const d = await res.json();
+                document.getElementById('top-status').innerHTML = `固件: ${d.version} | 运行: ${d.uptime_sec}s | IP: ${d.sta_ip}`;
+                document.getElementById('stat-sta-ip').innerText = d.sta_ip;
+                document.getElementById('stat-uptime').innerText = `${d.uptime_sec}s`;
+                document.getElementById('stat-audio-frames').innerText = `${d.frames_decoded} 帧`;
+                document.getElementById('stat-mem').innerText = `Heap: ${Math.round(d.free_heap/1024)}KB | PSRAM: ${Math.round(d.free_psram/1024/1024)}MB`;
+                
+                const bleInfoRes = await fetch('/api/ble/info');
+                const bleInfo = await bleInfoRes.json();
+                if (bleInfo.connected) {
+                    document.getElementById('stat-ble-state').innerText = '已连接';
+                    document.getElementById('stat-ble-state').style.color = 'var(--accent-green)';
+                    document.getElementById('stat-ble-name').innerText = bleInfo.name || '小米蓝牙语音遥控器';
+                } else {
+                    document.getElementById('stat-ble-state').innerText = '扫描重连中...';
+                    document.getElementById('stat-ble-state').style.color = 'var(--accent-orange)';
+                    document.getElementById('stat-ble-name').innerText = bleInfo.bound_mac ? `已绑定: ${bleInfo.bound_mac}` : '未绑定遥控器';
+                }
+            } catch(e){}
+        }
+
+        async function fetchKeyTelemetry() {
+            try {
+                const res = await fetch('/api/keymap/telemetry');
+                const t = await res.json();
+
+                if (t.source_vk && t.source_vk !== 0) {
+                    const vk = t.source_vk;
+                    const hexCode = '0x' + vk.toString(16).toUpperCase().padStart(2, '0');
+                    const btnName = KEY_NAMES[vk] || `按键 ${hexCode}`;
+                    
+                    document.getElementById('live-key-code').innerText = hexCode;
+                    document.getElementById('live-key-state').innerText = t.is_pressed ? 'DOWN (按下)' : 'UP (松开)';
+                    document.getElementById('live-key-state').style.color = t.is_pressed ? 'var(--accent-cyan)' : 'var(--accent-green)';
+                    document.getElementById('live-key-dur').innerText = `${t.duration_ms || 0} ms`;
+                    document.getElementById('live-act-type').innerText = `TYPE_${t.action_type || 0}`;
+                    document.getElementById('live-act-val').innerText = `Key: 0x${(t.key_code||0).toString(16)} Cons: 0x${(t.consumer_code||0).toString(16)}`;
+
+                    // Find DOM element
+                    let targetHex = hexCode;
+                    if (vk === 0xFF) targetHex = '0x66';
+                    if (vk === 0x4A) targetHex = '0x24';
+                    if (vk === 0x65) targetHex = '0x5D';
+                    if (vk === 0x35) targetHex = '0xC0';
+
+                    const btnEl = document.getElementById(`btn-${targetHex}`);
+                    if (btnEl) {
+                        document.getElementById('live-key-name').innerText = btnName;
+                        btnEl.classList.add('pressed');
+                        
+                        if (clearHighlightTimer) clearTimeout(clearHighlightTimer);
+                        clearHighlightTimer = setTimeout(() => {
+                            btnEl.classList.remove('pressed');
+                        }, 250);
+                    }
+                }
+            } catch(e){}
+        }
+
+        async function loadKeymap() {
+            try {
+                const res = await fetch('/api/keymap');
+                currentKeymap = await res.json();
+            } catch(e){}
+        }
+
+        function openRemapModal(keyVk, keyName) {
+            editingKey = keyVk;
+            activeTrigger = 'click';
+            document.getElementById('modal-title').innerText = `设置 ${keyName} 映射`;
+            document.getElementById('modal-vk-badge').innerText = '0x' + keyVk.toString(16).toUpperCase().padStart(2, '0');
+            setModalTrigger('click');
+            document.getElementById('remap-modal').style.display = 'flex';
+            startKeyboardRecording();
+        }
+
+        function closeRemapModal() {
+            document.getElementById('remap-modal').style.display = 'none';
+        }
+
+        function setModalTrigger(mode) {
+            activeTrigger = mode;
+            document.getElementById('trig-click').classList.toggle('active', mode === 'click');
+            document.getElementById('trig-long').classList.toggle('active', mode === 'long');
+            document.getElementById('trig-double').classList.toggle('active', mode === 'double');
+            
+            // Load current binding for this trigger mode
+            const b = currentKeymap.bindings.find(x => x.source_vk === editingKey);
+            if (b) {
+                if (mode === 'click' && b.has_click) {
+                    renderCurrentAction(b.click_type, b.click_mod, b.click_key, b.click_cons);
+                } else if (mode === 'long' && b.has_long) {
+                    renderCurrentAction(b.long_type, b.long_mod, b.long_key, b.long_cons);
+                } else if (mode === 'double' && b.has_double) {
+                    renderCurrentAction(b.double_type, b.double_mod, b.double_key, b.double_cons);
+                } else {
+                    renderCurrentAction(0, 0, 0, 0);
+                }
+            } else {
+                renderCurrentAction(0, 0, 0, 0);
+            }
+        }
+
+        function renderCurrentAction(type, mod, key, cons) {
+            currentActionState = { type, mod, key, cons };
+            document.getElementById('adv-act-type').value = type || 1;
+            document.getElementById('adv-mod').value = mod || 0;
+            document.getElementById('adv-code').value = key || cons || 0;
+
+            const display = document.getElementById('recorded-badge-display');
+            if (type === 0 || (!key && !cons)) {
+                display.innerHTML = '<span style="color: var(--text-muted); font-size: 15px; font-weight: normal;">未设置（点击录制或从下方选择）</span>';
+                return;
+            }
+
+            let chips = [];
+            if (mod & 0x01) chips.push('Ctrl');
+            if (mod & 0x04) chips.push('Alt');
+            if (mod & 0x02) chips.push('Shift');
+            if (mod & 0x08) chips.push('Win');
+
+            if (type === 4) {
+                // Consumer multimedia
+                const consMap = { 545: '音量 +', 546: '音量 -', 547: '静音', 516: '播放/暂停', 537: '下一曲', 538: '上一曲', 558: '返回', 530: '休眠' };
+                chips.push(consMap[cons] || `多媒体 0x${cons.toString(16)}`);
+            } else {
+                // Find key label
+                let keyName = `Key(0x${key.toString(16)})`;
+                for (let k in DOM_TO_HID) {
+                    if (DOM_TO_HID[k] === key) {
+                        keyName = k.replace('Key', '').replace('Digit', '').replace('Arrow', '');
+                        break;
+                    }
+                }
+                chips.push(keyName);
+            }
+
+            display.innerHTML = chips.map(c => `<span class="kbd-chip">${c}</span>`).join(' + ');
+        }
+
+        function startKeyboardRecording() {
+            const box = document.getElementById('key-recorder-box');
+            box.focus();
+            box.classList.add('recording');
+        }
+
+        // Global Keyboard Event Capturer for Ultra-Intuitive Remapping
+        window.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('remap-modal');
+            if (modal.style.display !== 'flex') return;
+
+            // If user is typing in advanced inputs, let it through
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Ignore standalone modifier presses (wait for actual key)
+            if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+            let mod = 0;
+            if (e.ctrlKey) mod |= 0x01; // LCTRL
+            if (e.shiftKey) mod |= 0x02; // LSHIFT
+            if (e.altKey) mod |= 0x04; // LALT
+            if (e.metaKey) mod |= 0x08; // LGUI (Win)
+
+            const hidCode = DOM_TO_HID[e.code] || 0;
+            if (hidCode > 0) {
+                renderCurrentAction(1, mod, hidCode, 0);
+            }
         });
-        const data = await res.json();
-        if (data.status === 'connected') {
-          alert('连接成功并已保存绑定！');
-          fetchBleInfo();
-          fetchStatus();
-        } else {
-          alert('连接失败，请确保遥控器在旁边且处于配对状态！');
-        }
-      }
-    }
 
-    async function unpairBle() {
-      if (confirm('确定解除当前遥控器绑定？')) {
-        await fetch('/api/ble/unpair', { method: 'POST' });
-        alert('已清除绑定！');
-        fetchBleInfo();
+        function applySpecialAction(type, mod, key, cons, label) {
+            renderCurrentAction(type, mod, key, cons);
+        }
+
+        function clearCurrentTriggerBinding() {
+            renderCurrentAction(0, 0, 0, 0);
+        }
+
+        async function saveRemapConfig() {
+            // Read either captured action or advanced override
+            const advType = parseInt(document.getElementById('adv-act-type').value);
+            const advMod = parseInt(document.getElementById('adv-mod').value);
+            const advCode = parseInt(document.getElementById('adv-code').value);
+
+            let actType = currentActionState.type;
+            let mod = currentActionState.mod;
+            let key = (actType === 4) ? 0 : currentActionState.key;
+            let cons = (actType === 4) ? currentActionState.cons : 0;
+
+            if (advType && advCode) {
+                actType = advType;
+                mod = advMod;
+                if (actType === 4) cons = advCode;
+                else key = advCode;
+            }
+
+            let b = currentKeymap.bindings.find(x => x.source_vk === editingKey);
+            if (!b) {
+                b = { source_vk: editingKey, has_click: false, has_long: false, has_double: false };
+                currentKeymap.bindings.push(b);
+            }
+
+            if (activeTrigger === 'click') {
+                b.has_click = (actType > 0);
+                b.click_type = actType;
+                b.click_mod = mod;
+                b.click_key = key;
+                b.click_cons = cons;
+            } else if (activeTrigger === 'long') {
+                b.has_long = (actType > 0);
+                b.long_ms = 500;
+                b.long_type = actType;
+                b.long_mod = mod;
+                b.long_key = key;
+                b.long_cons = cons;
+            } else {
+                b.has_double = (actType > 0);
+                b.double_ms = 250;
+                b.double_type = actType;
+                b.double_mod = mod;
+                b.double_key = key;
+                b.double_cons = cons;
+            }
+
+            await fetch('/api/keymap/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentKeymap)
+            });
+
+            closeRemapModal();
+            alert('按键映射已保存到板载存储并立即生效！');
+        }
+
+        async function resetAllKeymaps() {
+            if (!confirm('确定要将所有按键映射恢复为出厂默认值吗？')) return;
+            await fetch('/api/keymap/reset', { method: 'POST' });
+            await loadKeymap();
+            alert('已恢复出厂按键映射！');
+        }
+
+        async function scanBleDevices() {
+            const container = document.getElementById('ble-dev-list');
+            container.innerHTML = '正在扫描周围蓝牙设备 (4秒)...';
+            try {
+                const res = await fetch('/api/ble/scan');
+                const d = await res.json();
+                if (!d.devices || d.devices.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-muted);">未发现附近设备，请确保遥控器处于配对广播状态。</div>';
+                    return;
+                }
+                let html = '<div style="display:grid; gap:10px;">';
+                d.devices.forEach(dev => {
+                    html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#0b0f17; padding:12px; border-radius:8px; border:1px solid #243247;">
+                        <div><b>${dev.name}</b> <span style="font-size:12px; color:var(--text-muted); font-family:monospace;">(${dev.mac}) RSSI: ${dev.rssi}dBm</span></div>
+                        <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="connectMac('${dev.mac}')">连接</button>
+                    </div>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch(e){ container.innerText = '扫描出错: ' + e; }
+        }
+
+        async function connectMac(mac) {
+            const res = await fetch('/api/ble/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mac }) });
+            alert('正在连接目标蓝牙遥控器，请查看运行日志...');
+        }
+
+        async function scanWifiNetworks() {
+            const list = document.getElementById('wifi-scan-list');
+            list.innerHTML = '正在搜索周围 2.4GHz Wi-Fi 网络...';
+            try {
+                const res = await fetch('/api/wifi/scan');
+                const d = await res.json();
+                if (!d.networks || d.networks.length === 0) {
+                    list.innerHTML = '未扫描到无线网络';
+                    return;
+                }
+                let html = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">';
+                d.networks.forEach(net => {
+                    if (net.ssid) {
+                        html += `<button class="btn btn-outline" style="font-size:12px; padding:6px 12px;" onclick="selectWifi('${net.ssid}')">📶 ${net.ssid} (${net.rssi}dBm)</button>`;
+                    }
+                });
+                html += '</div>';
+                list.innerHTML = html;
+            } catch(e){ list.innerText = '搜索出错: ' + e; }
+        }
+
+        function selectWifi(ssid) {
+            document.getElementById('wifi-ssid').value = ssid;
+            document.getElementById('wifi-pass').focus();
+        }
+
+        async function refreshLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const d = await res.json();
+                const terminal = document.getElementById('log-terminal');
+                terminal.innerText = d.logs.join('\n');
+                terminal.scrollTop = terminal.scrollHeight;
+            } catch(e){}
+        }
+
+        async function clearLogs() {
+            await fetch('/api/logs/clear', { method: 'POST' });
+            refreshLogs();
+        }
+
+        async function saveWifi() {
+            const ssid = document.getElementById('wifi-ssid').value;
+            const pass = document.getElementById('wifi-pass').value;
+            if (!ssid) return alert('请输入 Wi-Fi 名称');
+            await fetch('/api/wifi/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid, pass }) });
+            alert('Wi-Fi 配置已保存，ESP32 正在尝试连接！');
+        }
+
+        async function restartDevice() {
+            if (!confirm('确定要重启 ESP32-S3 设备吗？')) return;
+            await fetch('/api/system/restart', { method: 'POST' });
+            alert('正在重启...');
+        }
+
+        // Periodic background pollers
+        setInterval(fetchKeyTelemetry, 100);
+        setInterval(fetchStatus, 3000);
+        setInterval(refreshLogs, 2000);
+        loadKeymap();
         fetchStatus();
-      }
-    }
-
-    async function refreshLogs() {
-      try {
-        const res = await fetch('/api/logs');
-        const data = await res.json();
-        const box = document.getElementById('log-container');
-        box.innerHTML = '';
-        (data.logs || []).forEach(line => {
-          const div = document.createElement('div');
-          div.className = 'log-line';
-          div.innerText = line;
-          box.appendChild(div);
-        });
-        box.scrollTop = box.scrollHeight;
-      } catch (e) {}
-    }
-
-    async function clearLogs() {
-      await fetch('/api/logs/clear', { method: 'POST' });
-      refreshLogs();
-    }
-
-    async function apiAction(url) {
-      if (confirm('确定要执行此操作吗？')) {
-        await fetch(url, { method: 'POST' });
-        alert('操作已发送！');
-      }
-    }
-
-    async function scanWifi() {
-      const sel = document.getElementById('wifi-ssid-select');
-      sel.innerHTML = '<option>正在扫描周围 Wi-Fi...</option>';
-      try {
-        const res = await fetch('/api/wifi/scan');
-        const data = await res.json();
-        sel.innerHTML = '<option value="">-- 选择 Wi-Fi --</option>';
-        (data.networks || []).forEach(n => {
-          const opt = document.createElement('option');
-          opt.value = n.ssid;
-          opt.innerText = n.ssid + ' (' + n.rssi + ' dBm)' + (n.secure ? ' 🔒' : '');
-          sel.appendChild(opt);
-        });
-      } catch (e) {
-        sel.innerHTML = '<option>扫描失败，请重试</option>';
-      }
-    }
-
-    async function saveWifi() {
-      const ssid = document.getElementById('wifi-ssid').value.trim();
-      const pass = document.getElementById('wifi-pass').value.trim();
-      if (!ssid) { alert('请输入 Wi-Fi 名称'); return; }
-      const res = await fetch('/api/wifi/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssid, pass })
-      });
-      alert('Wi-Fi 配置已保存，ESP32 正在尝试连接路由器！');
-    }
-
-    async function resetKeymap() {
-      if (confirm('确定恢复出厂默认按键映射？')) {
-        await fetch('/api/keymap/reset', { method: 'POST' });
-        alert('按键映射已恢复为默认配置！');
-      }
-    }
-
-    setInterval(fetchStatus, 2000);
-    fetchStatus();
-    fetchBleInfo();
-  </script>
+    </script>
 </body>
 </html>
 )rawliteral";

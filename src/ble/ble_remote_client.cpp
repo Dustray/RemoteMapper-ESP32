@@ -64,6 +64,7 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
         // Trigger Voice Hold action (hold hotkey & reset audio DSP)
         key_action_t act = { ACTION_VOICE_HOLD, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
         usb_hid_dispatch_action(&act);
+        key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, true, millis());
         app_log("ATVV", ">>> Voice button PRESSED (session %d)", s_session_id);
     }
     // AUDIO_STOP / MIC_CLOSED / release op:
@@ -72,6 +73,7 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
             s_ble_state = BLE_STATE_CONNECTED;
             key_action_t act = { ACTION_VOICE_RELEASE, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
             usb_hid_dispatch_action(&act);
+            key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, false, millis());
             app_log("ATVV", "<<< Voice button RELEASED");
 
             // Re-arm remote HTT standby

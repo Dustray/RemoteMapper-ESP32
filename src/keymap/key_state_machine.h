@@ -54,6 +54,17 @@ typedef struct {
     bool     waiting_double;
 } key_slot_state_t;
 
+typedef struct {
+    uint8_t  source_vk;
+    bool     is_pressed;
+    uint32_t timestamp;
+    uint32_t duration_ms;
+    uint8_t  action_type;
+    uint8_t  modifier;
+    uint8_t  key_code;
+    uint16_t consumer_code;
+} key_event_telemetry_t;
+
 #define MAX_KEY_BINDINGS 16
 
 typedef void (*key_output_callback_t)(const key_action_t *action);
@@ -63,6 +74,7 @@ typedef struct {
     key_slot_state_t      states[MAX_KEY_BINDINGS];
     size_t                binding_count;
     key_output_callback_t output_cb;
+    key_event_telemetry_t last_telemetry;
 } key_mapper_engine_t;
 
 /**
@@ -76,18 +88,22 @@ void key_engine_init(key_mapper_engine_t *engine, key_output_callback_t cb);
 void key_engine_load_defaults(key_mapper_engine_t *engine);
 
 /**
+ * @brief Set or update a key binding
+ */
+bool key_engine_set_binding(key_mapper_engine_t *engine, const key_binding_t *binding);
+
+/**
+ * @brief Get binding for a key code
+ */
+bool key_engine_get_binding(const key_mapper_engine_t *engine, uint8_t source_vk, key_binding_t *out_binding);
+
+/**
  * @brief Feed raw physical key event from BLE HOGP
- * @param engine Engine handle
- * @param raw_key_code Remote key code (MI_KEY_*)
- * @param is_pressed true for key down, false for key up
- * @param now_ms Current system timestamp in milliseconds
  */
 void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool is_pressed, uint32_t now_ms);
 
 /**
  * @brief Periodic timer tick to evaluate long press, double click timeout, and repeat timers
- * @param engine Engine handle
- * @param now_ms Current system timestamp in milliseconds
  */
 void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms);
 

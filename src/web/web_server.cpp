@@ -6,6 +6,7 @@
 #include "ble/ble_remote_client.h"
 #include "audio/audio_pipeline.h"
 #include "keymap/key_state_machine.h"
+#include "keymap/key_config_storage.h"
 #include <WebServer.h>
 #include <ArduinoJson.h>
 
@@ -75,10 +76,34 @@ static void handle_wifi_config() {
     s_server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
+static void handle_keymap_get() {
+    String json = key_config_to_json(&g_key_engine);
+    s_server.send(200, "application/json", json);
+}
+
+static void handle_keymap_save() {
+    if (!s_server.hasArg("plain")) {
+        s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
+        return;
+    }
+    bool ok = key_config_from_json(&g_key_engine, s_server.arg("plain"));
+    if (ok) {
+        key_config_storage_save(&g_key_engine);
+        s_server.send(200, "application/json", "{\"status\":\"saved\"}");
+    } else {
+        s_server.send(400, "application/json", "{\"error\":\"invalid_keymap_format\"}");
+    }
+}
+
 static void handle_keymap_reset() {
-    key_engine_load_defaults(&g_key_engine);
+    key_config_storage_reset_defaults(&g_key_engine);
     app_log("KEYMAP", "Reset keymap to factory defaults via Web API");
     s_server.send(200, "application/json", "{\"status\":\"reset_ok\"}");
+}
+
+static void handle_keymap_telemetry() {
+    String json = key_telemetry_to_json(&g_key_engine);
+    s_server.send(200, "application/json", json);
 }
 
 static void handle_ble_scan() {
@@ -149,7 +174,10 @@ void web_server_init(void) {
     s_server.on("/api/logs/clear", HTTP_POST, handle_logs_clear);
     s_server.on("/api/wifi/scan", HTTP_GET, handle_wifi_scan);
     s_server.on("/api/wifi/config", HTTP_POST, handle_wifi_config);
+    s_server.on("/api/keymap", HTTP_GET, handle_keymap_get);
+    s_server.on("/api/keymap/save", HTTP_POST, handle_keymap_save);
     s_server.on("/api/keymap/reset", HTTP_POST, handle_keymap_reset);
+    s_server.on("/api/keymap/telemetry", HTTP_GET, handle_keymap_telemetry);
     s_server.on("/api/ble/scan", HTTP_GET, handle_ble_scan);
     s_server.on("/api/ble/connect", HTTP_POST, handle_ble_connect);
     s_server.on("/api/ble/unpair", HTTP_POST, handle_ble_unpair);

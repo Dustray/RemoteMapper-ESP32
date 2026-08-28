@@ -6,6 +6,7 @@
 #include "web/web_server.h"
 #include "audio/audio_pipeline.h"
 #include "keymap/key_state_machine.h"
+#include "keymap/key_config_storage.h"
 #include "usb/usb_composite.h"
 #include "ble/ble_remote_client.h"
 #include "cli/cli_manager.h"
@@ -41,9 +42,10 @@ void setup() {
     audio_pipeline_init(&g_audio_pipeline);
     app_log("INIT", "Audio Pipeline initialized (16kHz 16-bit Mono UAC 1.0)");
 
-    // 4. Initialize Key Engine with USB HID dispatcher callback
+    // 4. Initialize Key Engine with USB HID dispatcher callback and restore NVS mappings
     key_engine_init(&g_key_engine, usb_hid_dispatch_action);
-    app_log("INIT", "Key Engine initialized with %u mappings", (unsigned int)g_key_engine.binding_count);
+    key_config_storage_init(&g_key_engine);
+    app_log("INIT", "Key Engine active with %u mappings", (unsigned int)g_key_engine.binding_count);
 
     // 5. Initialize Serial / CDC CLI Manager
     cli_manager_init();
