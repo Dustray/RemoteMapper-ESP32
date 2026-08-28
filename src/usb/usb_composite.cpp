@@ -1,5 +1,6 @@
 #include "usb_composite.h"
 #include "audio/audio_pipeline.h"
+#include "log/app_log.h"
 #include <Arduino.h>
 #include "USB.h"
 #include "USBHIDKeyboard.h"
@@ -12,10 +13,6 @@ static bool                  s_usb_ready = false;
 extern "C" {
 
 void usb_composite_init(void) {
-    USB.productName("RemoteMapper Wireless Mic & Controller");
-    USB.manufacturerName("RemoteMapper");
-    USB.serialNumber("RM-ESP32S3-001");
-    
     s_keyboard.begin();
     s_consumer.begin();
     USB.begin();
@@ -45,7 +42,7 @@ bool usb_hid_keyboard_release(void) {
 bool usb_hid_keyboard_tap(uint8_t modifier, uint8_t keycode) {
     if (!s_usb_ready) return false;
     usb_hid_keyboard_press(modifier, keycode);
-    delay(12);
+    delay(15);
     usb_hid_keyboard_release();
     return true;
 }
@@ -65,13 +62,16 @@ bool usb_hid_consumer_release(void) {
 bool usb_hid_consumer_tap(uint16_t usage_code) {
     if (!s_usb_ready) return false;
     s_consumer.press(usage_code);
-    delay(10);
+    delay(15);
     s_consumer.release();
     return true;
 }
 
 void usb_hid_dispatch_action(const key_action_t *action) {
     if (!action) return;
+
+    app_log("USB_HID", "Emit Action: type=%d, mod=0x%02X, key=0x%02X, cons=0x%04X", 
+            action->type, action->modifier, action->key_code, action->consumer_code);
 
     switch (action->type) {
         case ACTION_KEYBOARD_TAP:

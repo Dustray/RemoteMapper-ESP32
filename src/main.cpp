@@ -24,13 +24,14 @@ static void ble_task_core0(void* param) {
 }
 
 void setup() {
-    // 1. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
+    // 1. Initialize Log System first
+    app_log_init();
+
+    // 2. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
     usb_composite_init();
     Serial.begin(115200);
-    delay(500);
+    delay(200);
 
-    // 2. Initialize Global Log System
-    app_log_init();
     app_log("SYSTEM", "==================================================");
     app_log("SYSTEM", " %s v%s (%s)", FIRMWARE_NAME, FIRMWARE_VERSION, HARDWARE_TARGET);
     app_log("SYSTEM", " Xiaomi Remote Hardware Bridge (BLE -> USB + Web)");

@@ -97,6 +97,8 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
     }
 }
 
+static uint8_t s_last_hogp_key = 0;
+
 // HOGP HID Report Notification Callback
 static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
     if (length < 1) return;
@@ -110,11 +112,53 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
     }
     app_log("HOGP_RAW", "Report (len %d): %s", (int)length, hex_str.c_str());
 
-    uint8_t raw_key = pData[0];
-    bool is_pressed = (length > 1) ? (pData[1] != 0) : (raw_key != 0);
+    uint8_t raw_key = 0;
+    bool is_pressed = false;
 
-    app_log("HOGP", "Key event: 0x%02X (%s)", raw_key, is_pressed ? "DOWN" : "UP");
-    key_engine_feed_key(&g_key_engine, raw_key, is_pressed, millis());
+    if (length >= 3) {
+        if (pData[2] != 0) {
+            raw_key = pData[2];
+            is_pressed = true;
+            s_last_hogp_key = raw_key;
+        } else if (pData[0] != 0) {
+            raw_key = pData[0];
+            is_pressed = true;
+            s_last_hogp_key = raw_key;
+        } else {
+            raw_key = s_last_hogp_key;
+            is_pressed = false;
+            s_last_hogp_key = 0;
+        }
+    } else if (length == 2) {
+        if (pData[1] != 0) {
+            raw_key = pData[1];
+            is_pressed = true;
+            s_last_hogp_key = raw_key;
+        } else if (pData[0] != 0) {
+            raw_key = pData[0];
+            is_pressed = true;
+            s_last_hogp_key = raw_key;
+        } else {
+            raw_key = s_last_hogp_key;
+            is_pressed = false;
+            s_last_hogp_key = 0;
+        }
+    } else {
+        if (pData[0] != 0) {
+            raw_key = pData[0];
+            is_pressed = true;
+            s_last_hogp_key = raw_key;
+        } else {
+            raw_key = s_last_hogp_key;
+            is_pressed = false;
+            s_last_hogp_key = 0;
+        }
+    }
+
+    if (raw_key != 0) {
+        app_log("HOGP", "Key event: 0x%02X (%s)", raw_key, is_pressed ? "DOWN" : "UP");
+        key_engine_feed_key(&g_key_engine, raw_key, is_pressed, millis());
+    }
 }
 
 static bool is_target_remote(NimBLEAdvertisedDevice* dev) {

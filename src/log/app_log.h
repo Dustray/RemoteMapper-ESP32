@@ -4,9 +4,6 @@
 #include <stddef.h>
 #include <Arduino.h>
 
-#define MAX_LOG_LINES 60
-#define MAX_LOG_LINE_LEN 160
-
 #ifdef __cplusplus
 extern "C" {
 #endif
