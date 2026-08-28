@@ -24,27 +24,25 @@ static void ble_task_core0(void* param) {
 }
 
 void setup() {
+    // 1. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
+    usb_composite_init();
     Serial.begin(115200);
-    delay(400);
+    delay(500);
 
-    // 1. Initialize Global Log System
+    // 2. Initialize Global Log System
     app_log_init();
     app_log("SYSTEM", "==================================================");
     app_log("SYSTEM", " %s v%s (%s)", FIRMWARE_NAME, FIRMWARE_VERSION, HARDWARE_TARGET);
     app_log("SYSTEM", " Xiaomi Remote Hardware Bridge (BLE -> USB + Web)");
     app_log("SYSTEM", "==================================================");
 
-    // 2. Initialize Audio Pipeline
+    // 3. Initialize Audio Pipeline
     audio_pipeline_init(&g_audio_pipeline);
     app_log("INIT", "Audio Pipeline initialized (16kHz 16-bit Mono UAC 1.0)");
 
-    // 3. Initialize Key Engine with USB HID dispatcher callback
+    // 4. Initialize Key Engine with USB HID dispatcher callback
     key_engine_init(&g_key_engine, usb_hid_dispatch_action);
     app_log("INIT", "Key Engine initialized with %u mappings", (unsigned int)g_key_engine.binding_count);
-
-    // 4. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
-    usb_composite_init();
-    app_log("INIT", "USB Composite Device ready");
 
     // 5. Initialize Serial / CDC CLI Manager
     cli_manager_init();

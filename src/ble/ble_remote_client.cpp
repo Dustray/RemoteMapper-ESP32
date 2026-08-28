@@ -2,14 +2,23 @@
 #include "audio/audio_pipeline.h"
 #include "keymap/key_state_machine.h"
 #include "usb/usb_composite.h"
+#include "log/app_log.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <Preferences.h>
+#include <ArduinoJson.h>
+#include <vector>
 
 static ble_remote_state_t              s_ble_state = BLE_STATE_DISCONNECTED;
 static NimBLEClient*                   s_client = nullptr;
 static NimBLERemoteCharacteristic*     s_char_cmd = nullptr;
 static NimBLERemoteCharacteristic*     s_char_aud = nullptr;
 static NimBLERemoteCharacteristic*     s_char_ctl = nullptr;
+
+static Preferences                     s_ble_prefs;
+static String                          s_bound_mac = "";
+static String                          s_connected_name = "";
+static String                          s_connected_mac = "";
 
 static uint8_t                         s_session_id = 0;
 static uint32_t                        s_last_audio_ms = 0;
@@ -22,6 +31,7 @@ extern key_mapper_engine_t g_key_engine;
 // Forward Declarations
 static void start_scan();
 static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice);
+static bool connect_to_mac_internal(const NimBLEAddress& address, const String& dev_name);
 
 // Audio Notification Callback (ATVV Char 0x03)
 static void on_audio_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
@@ -45,7 +55,7 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
         // Trigger Voice Hold action (hold hotkey & reset audio DSP)
         key_action_t act = { ACTION_VOICE_HOLD, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
         usb_hid_dispatch_action(&act);
-        Serial.printf("[ATVV] >>> Voice button PRESSED (session %d)\n", s_session_id);
+        app_log("ATVV", ">>> Voice button PRESSED (session %d)", s_session_id);
     }
     // AUDIO_STOP / MIC_CLOSED / release op:
     else if (op == 0x00) {
@@ -53,7 +63,7 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
             s_ble_state = BLE_STATE_CONNECTED;
             key_action_t act = { ACTION_VOICE_RELEASE, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
             usb_hid_dispatch_action(&act);
-            Serial.println("[ATVV] <<< Voice button RELEASED");
+            app_log("ATVV", "<<< Voice button RELEASED");
 
             // Re-arm remote HTT standby
             if (s_char_cmd != nullptr) {
@@ -67,14 +77,14 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
         uint16_t ver = (pData[1] << 8) | pData[2];
         uint16_t fs = (pData[5] << 8) | pData[6];
         if (fs > 0) s_frame_size = fs;
-        Serial.printf("[ATVV] CAPS: ver=0x%04X, frame_size=%d\n", ver, (int)s_frame_size);
+        app_log("ATVV", "CAPS: ver=0x%04X, frame_size=%d", ver, (int)s_frame_size);
     }
     // AUDIO_SYNC: op == 0x0A
     else if (op == 0x0A && length >= 7) {
         int16_t pred = (int16_t)((pData[4] << 8) | pData[5]);
         int8_t step_idx = (int8_t)pData[6];
         audio_pipeline_sync(&g_audio_pipeline, pred, step_idx);
-        Serial.printf("[ATVV] SYNC: pred=%d, step=%d\n", pred, step_idx);
+        app_log("ATVV", "SYNC: pred=%d, step=%d", pred, step_idx);
     }
 }
 
@@ -84,8 +94,44 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
     uint8_t raw_key = pData[0];
     bool is_pressed = (length > 1) ? (pData[1] != 0) : (raw_key != 0);
 
-    Serial.printf("[HOGP] Key byte: 0x%02X (%s)\n", raw_key, is_pressed ? "DOWN" : "UP");
+    app_log("HOGP", "Key byte: 0x%02X (%s)", raw_key, is_pressed ? "DOWN" : "UP");
     key_engine_feed_key(&g_key_engine, raw_key, is_pressed, millis());
+}
+
+static bool is_target_remote(NimBLEAdvertisedDevice* dev) {
+    String name = dev->getName().c_str();
+    String addr = dev->getAddress().toString().c_str();
+    addr.toLowerCase();
+
+    // 1. Exact match with previously bound remote
+    if (s_bound_mac.length() > 0 && addr.equalsIgnoreCase(s_bound_mac)) {
+        return true;
+    }
+
+    // 2. Name contains Xiaomi / Remote keywords in Chinese & English
+    if (name.indexOf("小米") >= 0 || name.indexOf("遥控") >= 0 ||
+        name.indexOf("MI RC") >= 0 || name.indexOf("Xiaomi") >= 0 ||
+        name.indexOf("Remote") >= 0 || name.indexOf("RC") >= 0) {
+        return true;
+    }
+
+    // 3. Service UUID matches ATVV or HID
+    if (dev->haveServiceUUID()) {
+        if (dev->isAdvertisingService(NimBLEUUID(ATVV_SVC_UUID)) ||
+            dev->isAdvertisingService(NimBLEUUID((uint16_t)HOGP_SVC_UUID))) {
+            return true;
+        }
+    }
+
+    // 4. Common Xiaomi Bluetooth OUI prefixes
+    if (addr.startsWith("c0:5d:39") || addr.startsWith("64:90:c1") ||
+        addr.startsWith("7c:49:eb") || addr.startsWith("50:ec:50") ||
+        addr.startsWith("04:cf:8c") || addr.startsWith("28:6c:07") ||
+        addr.startsWith("34:ce:00") || addr.startsWith("5c:c3:06")) {
+        return true;
+    }
+
+    return false;
 }
 
 // Advertised Device Scan Callbacks
@@ -93,13 +139,13 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
     void onResult(NimBLEAdvertisedDevice* advertisedDevice) override {
         String name = advertisedDevice->getName().c_str();
         String addr = advertisedDevice->getAddress().toString().c_str();
-        addr.toLowerCase();
 
-        bool match_name = name.indexOf(BLE_REMOTE_NAME_PREFIX) >= 0;
-        bool match_mac = addr.startsWith(BLE_REMOTE_MAC_PREFIX);
+        if (name.length() > 0) {
+            app_log("BLE_SCAN", "Device: %s (%s, RSSI: %d)", name.c_str(), addr.c_str(), advertisedDevice->getRSSI());
+        }
 
-        if (match_name || match_mac) {
-            Serial.printf("[BLE] Found Target Remote: %s (%s), RSSI: %d\n", name.c_str(), addr.c_str(), advertisedDevice->getRSSI());
+        if (is_target_remote(advertisedDevice)) {
+            app_log("BLE", "Matching Target Remote: %s (%s), connecting...", name.c_str(), addr.c_str());
             NimBLEDevice::getScan()->stop();
             connect_to_remote(advertisedDevice);
         }
@@ -109,12 +155,12 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
 // Client Connection Callbacks
 class ClientCallbacks : public NimBLEClientCallbacks {
     void onConnect(NimBLEClient* pClient) override {
-        Serial.println("[BLE] Remote Connected");
+        app_log("BLE", "Remote GATT Connected!");
         s_ble_state = BLE_STATE_CONNECTED;
     }
 
     void onDisconnect(NimBLEClient* pClient) override {
-        Serial.println("[BLE] Remote Disconnected");
+        app_log("BLE", "Remote Disconnected");
         s_ble_state = BLE_STATE_DISCONNECTED;
         s_char_cmd = nullptr;
         s_char_aud = nullptr;
@@ -129,22 +175,12 @@ static void start_scan() {
     pScan->setActiveScan(true);
     pScan->setInterval(BLE_SCAN_INTERVAL_MS);
     pScan->setWindow(BLE_SCAN_WINDOW_MS);
-    pScan->start(5, false);
-    Serial.println("[BLE] Scanning for Xiaomi Remote (MI RC)...");
+    pScan->start(6, false);
+    app_log("BLE", "Scanning for Xiaomi Bluetooth Remote...");
 }
 
-static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice) {
-    s_ble_state = BLE_STATE_CONNECTING;
-    if (s_client == nullptr) {
-        s_client = NimBLEDevice::createClient();
-        s_client->setClientCallbacks(new ClientCallbacks(), false);
-    }
-
-    if (!s_client->connect(advDevice)) {
-        Serial.println("[BLE] Connection Failed");
-        s_ble_state = BLE_STATE_DISCONNECTED;
-        return false;
-    }
+static bool setup_services_and_handshake() {
+    if (!s_client || !s_client->isConnected()) return false;
 
     // Discover ATVV Service
     NimBLERemoteService* pAtvvSvc = s_client->getService(NimBLEUUID(ATVV_SVC_UUID));
@@ -167,7 +203,7 @@ static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice) {
             delay(150);
             uint8_t cmd_open[] = { 0x0C, 0x00 };
             s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
-            Serial.println("[ATVV] Handshake completed successfully");
+            app_log("ATVV", "Handshake completed successfully (MIC_OPEN active)");
         }
     }
 
@@ -177,7 +213,7 @@ static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice) {
         NimBLERemoteCharacteristic* pReportChar = pHogpSvc->getCharacteristic(NimBLEUUID((uint16_t)HOGP_REPORT_CHAR_UUID));
         if (pReportChar && pReportChar->canNotify()) {
             pReportChar->subscribe(true, on_hogp_report_notify);
-            Serial.println("[HOGP] Subscribed to HID Key Reports");
+            app_log("HOGP", "Subscribed to HID Key Reports");
         }
     }
 
@@ -185,9 +221,71 @@ static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice) {
     return true;
 }
 
+static bool connect_to_remote(NimBLEAdvertisedDevice* advDevice) {
+    s_ble_state = BLE_STATE_CONNECTING;
+    if (s_client == nullptr) {
+        s_client = NimBLEDevice::createClient();
+        s_client->setClientCallbacks(new ClientCallbacks(), false);
+    }
+
+    if (!s_client->connect(advDevice)) {
+        app_log("BLE", "Connection Failed to %s", advDevice->getAddress().toString().c_str());
+        s_ble_state = BLE_STATE_DISCONNECTED;
+        return false;
+    }
+
+    s_connected_name = advDevice->getName().c_str();
+    s_connected_mac = advDevice->getAddress().toString().c_str();
+    if (s_connected_name.length() == 0) s_connected_name = "Xiaomi Voice Remote";
+
+    // Save bound MAC to NVS
+    s_bound_mac = s_connected_mac;
+    s_ble_prefs.putString("bound_mac", s_bound_mac);
+    s_ble_prefs.putString("bound_name", s_connected_name);
+    app_log("BLE", "Bound and saved remote: %s (%s)", s_connected_name.c_str(), s_bound_mac.c_str());
+
+    return setup_services_and_handshake();
+}
+
+static bool connect_to_mac_internal(const NimBLEAddress& address, const String& dev_name) {
+    s_ble_state = BLE_STATE_CONNECTING;
+    NimBLEDevice::getScan()->stop();
+
+    if (s_client == nullptr) {
+        s_client = NimBLEDevice::createClient();
+        s_client->setClientCallbacks(new ClientCallbacks(), false);
+    } else if (s_client->isConnected()) {
+        s_client->disconnect();
+    }
+
+    app_log("BLE", "Connecting directly to MAC: %s...", address.toString().c_str());
+    if (!s_client->connect(address)) {
+        app_log("BLE", "Direct connection to %s failed", address.toString().c_str());
+        s_ble_state = BLE_STATE_DISCONNECTED;
+        return false;
+    }
+
+    s_connected_mac = address.toString().c_str();
+    s_connected_name = dev_name.length() > 0 ? dev_name : "Xiaomi Voice Remote";
+    s_bound_mac = s_connected_mac;
+    s_ble_prefs.putString("bound_mac", s_bound_mac);
+    s_ble_prefs.putString("bound_name", s_connected_name);
+    app_log("BLE", "Manually paired and saved: %s (%s)", s_connected_name.c_str(), s_bound_mac.c_str());
+
+    return setup_services_and_handshake();
+}
+
 extern "C" {
 
 void ble_remote_init(void) {
+    s_ble_prefs.begin("ble_conf", false);
+    s_bound_mac = s_ble_prefs.getString("bound_mac", "");
+    String bound_name = s_ble_prefs.getString("bound_name", "");
+
+    if (s_bound_mac.length() > 0) {
+        app_log("BLE", "Loaded previously bound remote: %s (%s)", bound_name.c_str(), s_bound_mac.c_str());
+    }
+
     NimBLEDevice::init("ESP32-RemoteBridge");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEDevice::setSecurityAuth(true, true, true);
@@ -209,7 +307,7 @@ void ble_remote_task(void) {
     // 2. Audio silence watchdog (if voice key released packet dropped)
     if (s_ble_state == BLE_STATE_TALKING) {
         if (now - s_last_audio_ms > BLE_SILENCE_WATCHDOG_MS) {
-            Serial.println("[ATVV] Silence watchdog expired -> force stopping speech");
+            app_log("ATVV", "Silence watchdog expired -> force stopping speech");
             s_ble_state = BLE_STATE_CONNECTED;
             key_action_t act = { ACTION_VOICE_RELEASE, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
             usb_hid_dispatch_action(&act);
@@ -233,6 +331,57 @@ void ble_remote_trigger_reconnect(void) {
         s_client->disconnect();
     }
     start_scan();
+}
+
+String ble_remote_scan_devices_json(void) {
+    app_log("BLE", "Performing full 4s BLE scan for nearby devices...");
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    pScan->stop();
+    NimBLEScanResults results = pScan->start(4, false);
+
+    JsonDocument doc;
+    JsonArray arr = doc["devices"].to<JsonArray>();
+
+    for (int i = 0; i < results.getCount(); i++) {
+        NimBLEAdvertisedDevice dev = results.getDevice(i);
+        JsonObject obj = arr.add<JsonObject>();
+        String name = dev.getName().c_str();
+        if (name.length() == 0) name = "Unnamed BLE Device";
+        obj["name"] = name;
+        obj["mac"] = dev.getAddress().toString().c_str();
+        obj["rssi"] = dev.getRSSI();
+    }
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+bool ble_remote_connect_mac(const String& mac_str) {
+    if (mac_str.length() == 0) return false;
+    NimBLEAddress addr(mac_str.c_str());
+    return connect_to_mac_internal(addr, "Xiaomi Remote");
+}
+
+void ble_remote_unpair(void) {
+    s_bound_mac = "";
+    s_connected_name = "";
+    s_connected_mac = "";
+    s_ble_prefs.remove("bound_mac");
+    s_ble_prefs.remove("bound_name");
+    app_log("BLE", "Unpaired and cleared saved remote MAC");
+    ble_remote_trigger_reconnect();
+}
+
+String ble_remote_get_connected_info(void) {
+    JsonDocument doc;
+    doc["connected"] = (s_ble_state >= BLE_STATE_CONNECTED);
+    doc["name"] = s_connected_name;
+    doc["mac"] = s_connected_mac;
+    doc["bound_mac"] = s_bound_mac;
+    String out;
+    serializeJson(doc, out);
+    return out;
 }
 
 } // extern "C"

@@ -81,6 +81,43 @@ static void handle_keymap_reset() {
     s_server.send(200, "application/json", "{\"status\":\"reset_ok\"}");
 }
 
+static void handle_ble_scan() {
+    String json = ble_remote_scan_devices_json();
+    s_server.send(200, "application/json", json);
+}
+
+static void handle_ble_connect() {
+    if (!s_server.hasArg("plain")) {
+        s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
+        return;
+    }
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, s_server.arg("plain"));
+    if (err) {
+        s_server.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+        return;
+    }
+
+    String mac = doc["mac"] | "";
+    if (mac.length() == 0) {
+        s_server.send(400, "application/json", "{\"error\":\"empty_mac\"}");
+        return;
+    }
+
+    bool ok = ble_remote_connect_mac(mac);
+    s_server.send(200, "application/json", ok ? "{\"status\":\"connected\"}" : "{\"status\":\"failed\"}");
+}
+
+static void handle_ble_unpair() {
+    ble_remote_unpair();
+    s_server.send(200, "application/json", "{\"status\":\"unpaired\"}");
+}
+
+static void handle_ble_info() {
+    String json = ble_remote_get_connected_info();
+    s_server.send(200, "application/json", json);
+}
+
 static void handle_ble_reconnect() {
     app_log("BLE", "Triggered manual reconnect scan via Web API");
     ble_remote_trigger_reconnect();
@@ -113,6 +150,10 @@ void web_server_init(void) {
     s_server.on("/api/wifi/scan", HTTP_GET, handle_wifi_scan);
     s_server.on("/api/wifi/config", HTTP_POST, handle_wifi_config);
     s_server.on("/api/keymap/reset", HTTP_POST, handle_keymap_reset);
+    s_server.on("/api/ble/scan", HTTP_GET, handle_ble_scan);
+    s_server.on("/api/ble/connect", HTTP_POST, handle_ble_connect);
+    s_server.on("/api/ble/unpair", HTTP_POST, handle_ble_unpair);
+    s_server.on("/api/ble/info", HTTP_GET, handle_ble_info);
     s_server.on("/api/ble/reconnect", HTTP_POST, handle_ble_reconnect);
     s_server.on("/api/system/restart", HTTP_POST, handle_system_restart);
 

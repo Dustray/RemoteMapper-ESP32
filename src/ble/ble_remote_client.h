@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <Arduino.h>
 #include "app_config.h"
 
 #ifdef __cplusplus
@@ -36,6 +37,26 @@ ble_remote_state_t ble_remote_get_state(void);
  * @brief Trigger manual reconnect / re-scan
  */
 void ble_remote_trigger_reconnect(void);
+
+/**
+ * @brief Scan for nearby BLE devices and return JSON list
+ */
+String ble_remote_scan_devices_json(void);
+
+/**
+ * @brief Manually connect and pair to specific BLE device by MAC address
+ */
+bool ble_remote_connect_mac(const String& mac_str);
+
+/**
+ * @brief Unpair and clear saved remote MAC address
+ */
+void ble_remote_unpair(void);
+
+/**
+ * @brief Get connected remote name and MAC
+ */
+String ble_remote_get_connected_info(void);
 
 #ifdef __cplusplus
 }
