@@ -1,4 +1,5 @@
 #include "key_state_machine.h"
+#include "app_config.h"
 #include <string.h>
 
 static int find_binding_index(const key_mapper_engine_t *engine, uint8_t raw_key) {
@@ -57,7 +58,7 @@ void key_engine_load_defaults(key_mapper_engine_t *engine) {
         memset(&b, 0, sizeof(b));
         b.source_vk = MI_KEY_VOICE;
         b.has_click = true;
-        b.click_action = (key_action_t){ ACTION_VOICE_HOLD, USB_MOD_LGUI, USB_KEY_H, 0 };
+        b.click_action = (key_action_t){ ACTION_VOICE_HOLD, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
         engine->bindings[engine->binding_count++] = b;
     }
 

@@ -83,6 +83,11 @@ bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
         b.click_action.key_code = obj["click_key"] | 0;
         b.click_action.consumer_code = obj["click_cons"] | 0;
 
+        // FORCE ACTION_VOICE_HOLD for the Voice key so the mic always works
+        if (b.source_vk == MI_KEY_VOICE) {
+            b.click_action.type = ACTION_VOICE_HOLD;
+        }
+
         b.has_long = obj["has_long"] | false;
         b.long_ms = obj["long_ms"] | 500;
         b.long_action.type = (key_action_type_t)(obj["long_type"] | 0);
