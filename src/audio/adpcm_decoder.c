@@ -1,6 +1,6 @@
 #include "adpcm_decoder.h"
 
-// Standard IMA-ADPCM Step Table (89 entries)
+// Standard IMA-ADPCM Step Table (89 entries) matching RemoteMic.cs
 static const int16_t STEP_TABLE[89] = {
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17,
     19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
@@ -13,7 +13,7 @@ static const int16_t STEP_TABLE[89] = {
     15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767
 };
 
-// Standard IMA-ADPCM Index Adjustment Table (8 entries)
+// Standard IMA-ADPCM Index Adjustment Table (8 entries) matching RemoteMic.cs
 static const int8_t INDEX_TABLE[8] = {
     -1, -1, -1, -1, 2, 4, 6, 8
 };
@@ -67,9 +67,9 @@ size_t adpcm_decode_frame(adpcm_state_t *state, const uint8_t *in_data, size_t i
     size_t sample_idx = 0;
     for (size_t i = 0; i < in_bytes; i++) {
         uint8_t byte_val = in_data[i];
-        // Hi-nibble first
+        // RemoteMic.cs line 458: Hi-nibble first
         out_pcm[sample_idx++] = adpcm_decode_nibble(state, (uint8_t)(byte_val >> 4));
-        // Low-nibble second
+        // RemoteMic.cs line 459: Low-nibble second
         out_pcm[sample_idx++] = adpcm_decode_nibble(state, (uint8_t)(byte_val & 0x0F));
     }
 

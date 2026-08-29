@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#define AUDIO_JITTER_PREFILL_SAMPLES  1600  // 100ms prefill cushion to absorb BLE jitter
+
 typedef struct {
     adpcm_state_t        adpcm;
     audio_filter_state_t filter;
@@ -22,8 +24,10 @@ typedef struct {
     int16_t              temp_pcm[AUDIO_DEFAULT_FRAME_SAMPS * 2];
     uint8_t              session_id;
     bool                 active;
+    bool                 buffering;
     uint32_t             total_frames_decoded;
     uint32_t             total_samples_pushed;
+    uint32_t             underrun_count;
 } audio_pipeline_t;
 
 /**
@@ -60,12 +64,12 @@ size_t audio_pipeline_feed_adpcm(audio_pipeline_t *pipeline, const uint8_t *adpc
  * @param pipeline Pipeline handle
  * @param out_pcm Destination buffer
  * @param sample_count Number of samples requested
- * @return Number of samples read (fills remaining with silence 0 if underrun)
+ * @return Number of samples read
  */
 size_t audio_pipeline_read_for_usb(audio_pipeline_t *pipeline, int16_t *out_pcm, size_t sample_count);
 
 /**
- * @brief Stop active speech session and clear buffers
+ * @brief Stop active speech session
  */
 void audio_pipeline_stop_session(audio_pipeline_t *pipeline);
 

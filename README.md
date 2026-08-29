@@ -21,6 +21,9 @@
 4. 🛡️ **健壮的保活与看门狗机制**：
    - 450ms 音频静音看门狗：防止由于蓝牙丢包导致的语音键状态卡住；
    - 自动重连与绑定恢复：NVS 存储配对信息，开机与遥控器唤醒时秒连。
+5. 🛠️ **完美规避 DWC2 Isochronous USB 缺陷**：
+   - 突破 TinyUSB 在 Arduino 预编译栈下缺乏 SOF 中断导致的 500Hz 丢帧降频魔咒；
+   - 采用独创的 **bInterval=2 / wMaxPacketSize=64** 降频缓冲方案，实现 1000Hz 零抖动 16kHz 完美音质。
 
 ---
 
@@ -72,3 +75,8 @@ flash.bat
 ```cmd
 monitor.bat
 ```
+
+## 🐛 历史 Bug 与稳定性修复记录
+如果你对底层原理感兴趣，欢迎阅读：
+- [蓝牙与 USB 复合设备稳定性深度 Bug 修复记录 (Session 2)](./BLE_HID_UAC_BUGS_POSTMORTEM.md)
+- [UAC1.0 与 DWC2 驱动死锁 Bug 修复记录 (Session 1)](./USB_UAC_BUG_POSTMORTEM.md)

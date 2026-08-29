@@ -1,5 +1,6 @@
 #include "ble_remote_client.h"
 #include "audio/audio_pipeline.h"
+#include "led_indicator.h"
 #include "keymap/key_state_machine.h"
 #include "usb/usb_composite.h"
 #include "log/app_log.h"
@@ -255,6 +256,7 @@ static void start_scan() {
         return;
     }
     s_ble_state = BLE_STATE_SCANNING;
+    led_indicator_set(LED_STATE_WAIT_CONNECTION);
     s_last_scan_ms = millis();
     NimBLEScan* pScan = NimBLEDevice::getScan();
     pScan->setActiveScan(true);
@@ -354,6 +356,7 @@ static bool setup_services_and_handshake() {
     }
 
     s_ble_state = BLE_STATE_CONNECTED;
+    led_indicator_set(LED_STATE_CONNECTED);
     s_last_keepalive_ms = millis();
     return true;
 }

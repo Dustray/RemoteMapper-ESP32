@@ -5,6 +5,8 @@ void audio_filter_init(audio_filter_state_t *state) {
     if (!state) return;
     state->prev_decoded = 0;
     state->last_sample = 0;
+    state->dc_x = 0.0f;
+    state->dc_y = 0.0f;
 }
 
 void audio_filter_declip(audio_filter_state_t *state, int16_t *samples, size_t count, int16_t threshold) {
@@ -37,5 +39,29 @@ void audio_filter_lowpass(audio_filter_state_t *state, int16_t *samples, size_t 
         samples[i] = (int16_t)((prev + (cur * 2) + samples[i + 1]) >> 2);
         prev = cur;
     }
+    // Smooth the boundary sample
+    samples[count - 1] = (int16_t)((prev + (samples[count - 1] * 3)) >> 2);
     state->last_sample = samples[count - 1];
+}
+
+void audio_filter_dc_block(audio_filter_state_t *state, int16_t *samples, size_t count) {
+    if (!state || !samples || count == 0) return;
+
+    float y_prev = state->dc_y;
+    float x_prev = state->dc_x;
+    const float R = 0.985f; // ~80Hz High-Pass cutoff @ 16kHz sample rate
+
+    for (size_t i = 0; i < count; i++) {
+        float x = (float)samples[i];
+        float y = x - x_prev + R * y_prev;
+        x_prev = x;
+        y_prev = y;
+
+        if (y > 32767.0f) y = 32767.0f;
+        else if (y < -32768.0f) y = -32768.0f;
+        samples[i] = (int16_t)y;
+    }
+
+    state->dc_x = x_prev;
+    state->dc_y = y_prev;
 }

@@ -51,7 +51,7 @@ def auto_upload():
     boot_app0 = r"C:\Users\cuicuiV5\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin"
     firmware = r".pio\build\esp32s3_n16r8\firmware.bin"
 
-    # Crucial: app0 offset is 0x20000 as defined in default_16MB.csv!
+    # Crucial: app0 offset is 0x10000 for standard Arduino default_16MB.csv
     cmd = [
         sys.executable, esptool_path,
         "--chip", "esp32s3",
@@ -66,14 +66,14 @@ def auto_upload():
         "0x0", bootloader,
         "0x8000", partitions,
         "0xe000", boot_app0,
-        "0x20000", firmware
+        "0x10000", firmware
     ]
 
-    print(f"Flashing firmware to {boot_port} (App offset: 0x20000, Mode: dio)...")
+    print(f"Flashing firmware to {boot_port} (App offset: 0x10000, Mode: dio)...")
     res = subprocess.run(cmd)
     if res.returncode == 0:
         print("\n==========================================")
-        print(" FLASH SUCCESSFUL! (App written to 0x20000)")
+        print(" FLASH SUCCESSFUL! (App written to 0x10000)")
         print("==========================================\n")
     else:
         sys.exit(res.returncode)

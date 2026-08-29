@@ -1,10 +1,17 @@
 #include "usb_composite.h"
+#include "uac_microphone.h"
 #include "audio/audio_pipeline.h"
 #include "log/app_log.h"
+#include "led_indicator.h"
 #include <Arduino.h>
 #include "USB.h"
+#include "USBCDC.h"
 #include "USBHIDKeyboard.h"
 #include "USBHIDConsumerControl.h"
+
+#if !ARDUINO_USB_CDC_ON_BOOT
+USBCDC USBSerial;
+#endif
 
 static USBHIDKeyboard        s_keyboard;
 static USBHIDConsumerControl s_consumer;
@@ -13,6 +20,21 @@ static bool                  s_usb_ready = false;
 extern "C" {
 
 void usb_composite_init(void) {
+    USB.VID(0x303A);
+    USB.PID(0x8089);
+    USB.productName("RemoteMapper Audio & Remote Bridge");
+    USB.manufacturerName("RemoteMapper");
+    USB.serialNumber("RM-ESP32S3-MIC02");
+    USB.usbClass(0xEF);
+    USB.usbSubClass(0x02);
+    USB.usbProtocol(0x01); // MISC_PROTOCOL_IAD
+
+#if !ARDUINO_USB_CDC_ON_BOOT
+    USBSerial.begin();
+#endif
+
+    uac_microphone_init();
+
     s_keyboard.begin();
     s_consumer.begin();
     USB.begin();
@@ -20,8 +42,7 @@ void usb_composite_init(void) {
 }
 
 void usb_composite_task(void) {
-    // Handled by native ESP32-S3 USB stack
-    usb_audio_task();
+    uac_microphone_task();
 }
 
 bool usb_hid_keyboard_press(uint8_t modifier, uint8_t keycode) {
@@ -73,6 +94,12 @@ void usb_hid_dispatch_action(const key_action_t *action) {
     app_log("USB_HID", "Emit Action: type=%d, mod=0x%02X, key=0x%02X, cons=0x%04X", 
             action->type, action->modifier, action->key_code, action->consumer_code);
 
+    if (action->type == ACTION_VOICE_HOLD || action->type == ACTION_VOICE_RELEASE) {
+        led_indicator_trigger_key(true); // Voice key
+    } else {
+        led_indicator_trigger_key(false); // Other key
+    }
+
     switch (action->type) {
         case ACTION_KEYBOARD_TAP:
             usb_hid_keyboard_tap(action->modifier, action->key_code);
@@ -108,11 +135,7 @@ void usb_hid_dispatch_action(const key_action_t *action) {
 }
 
 void usb_audio_task(void) {
-    if (!g_audio_pipeline.active) return;
-    
-    // In Isochronous mode, pull 16 samples (1ms @ 16kHz) from ring buffer
-    int16_t usb_frame_samples[16];
-    audio_pipeline_read_for_usb(&g_audio_pipeline, usb_frame_samples, 16);
+    uac_microphone_task();
 }
 
 } // extern "C"

@@ -15,7 +15,7 @@ extern "C" {
 #define AUDIO_CHANNELS            1         // Mono
 #define AUDIO_DEFAULT_FRAME_BYTES 120       // Default 120 bytes ADPCM per BLE frame
 #define AUDIO_DEFAULT_FRAME_SAMPS 240       // 120 * 2 = 240 PCM samples per frame
-#define AUDIO_RING_BUFFER_SIZE    4096      // Ring buffer capacity (in samples, ~256ms buffer)
+#define AUDIO_RING_BUFFER_SIZE    8192      // Ring buffer capacity (in samples, ~512ms buffer)
 
 // AGC & Filter parameters
 #define AGC_TARGET_LEVEL          28000.0f

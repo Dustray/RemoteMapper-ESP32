@@ -32,11 +32,13 @@ size_t audio_ring_buffer_write(audio_ring_buffer_t *rb, const int16_t *samples, 
 
     size_t free_slots = audio_ring_buffer_available_write(rb);
     size_t to_write = (count < free_slots) ? count : free_slots;
+    size_t h = rb->head;
 
     for (size_t i = 0; i < to_write; i++) {
-        rb->buffer[rb->head & rb->mask] = samples[i];
-        rb->head++;
+        rb->buffer[(h + i) & rb->mask] = samples[i];
     }
+    __sync_synchronize();
+    rb->head = h + to_write;
 
     return to_write;
 }
@@ -46,11 +48,13 @@ size_t audio_ring_buffer_read(audio_ring_buffer_t *rb, int16_t *out_samples, siz
 
     size_t avail = audio_ring_buffer_available_read(rb);
     size_t to_read = (count < avail) ? count : avail;
+    size_t t = rb->tail;
 
     for (size_t i = 0; i < to_read; i++) {
-        out_samples[i] = rb->buffer[rb->tail & rb->mask];
-        rb->tail++;
+        out_samples[i] = rb->buffer[(t + i) & rb->mask];
     }
+    __sync_synchronize();
+    rb->tail = t + to_read;
 
     return to_read;
 }

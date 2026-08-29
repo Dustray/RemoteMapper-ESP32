@@ -167,8 +167,13 @@ ESP32-S3 原生 USB OTG 控制器在枚举时向 Windows 呈现一个**复合多
 
 1. **Interface 0 & 1：USB Audio Class 1.0 (麦克风)**
    - 格式：PCM 16-bit Mono, 16000Hz；
-   - 端点：Isochronous IN 端点（端点大小 32 字节，每 1ms 轮询一次）；
+   - 端点：Isochronous IN 端点（采用降频设计：端点大小 64 字节，每 2ms 轮询一次）；
    - 设备名：`RemoteMapper Wireless Mic`。
+   > ⚠️ **开发踩坑警告 (The DWC2 Boundary Crossing Bug)**:
+   > 在 Arduino TinyUSB 预编译栈（无 SOF 中断）环境下开发 Isochronous 端点时，极易因任务相位漂移触发 DWC2 控制器的硬件 EONUM 奇偶边界跨越缺陷，导致 1000Hz 的物理帧降速为 500Hz 从而引发一半以上的音频丢包和重度锯齿音。
+   > **本固件通过合规的 `bInterval=2` 和 `wMaxPacketSize=64` 实现了完美的降频打包修复。** 
+   > 详细复盘分析请参阅根目录独立文档：[USB_UAC_BUG_POSTMORTEM.md](./USB_UAC_BUG_POSTMORTEM.md)
+
 2. **Interface 2：USB HID Keyboard**
    - 标准 6KRO 键盘报文，负责发送 `Win+D`, `Alt+Tab`, `RAlt+,` 等修饰组合键。
 3. **Interface 3：USB HID Consumer Control**

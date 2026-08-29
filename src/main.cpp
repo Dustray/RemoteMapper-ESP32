@@ -10,6 +10,7 @@
 #include "usb/usb_composite.h"
 #include "ble/ble_remote_client.h"
 #include "cli/cli_manager.h"
+#include "led_indicator.h"
 
 key_mapper_engine_t g_key_engine;
 
@@ -27,6 +28,9 @@ static void ble_task_core0(void* param) {
 void setup() {
     // 1. Initialize Log System first
     app_log_init();
+    
+    // 1.5. Initialize LED Indicator
+    led_indicator_init();
 
     // 2. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
     usb_composite_init();
@@ -88,5 +92,6 @@ void loop() {
     // 5. Service Serial / WebSerial CLI commands
     cli_manager_task();
 
-    delay(2);
+    // No delay here — USB audio task handles its own timing via vTaskDelayUntil
+    vTaskDelay(1); // yield to let higher-priority tasks run (USB, BLE)
 }
