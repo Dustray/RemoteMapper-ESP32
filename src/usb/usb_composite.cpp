@@ -120,9 +120,11 @@ void usb_hid_dispatch_action(const key_action_t *action) {
             usb_hid_consumer_release();
             break;
         case ACTION_VOICE_HOLD:
-            // Hold Voice Hotkey (Default RAlt + Comma) and start audio session
+            // Hold Voice Hotkey and start audio session
             audio_pipeline_start_session(&g_audio_pipeline, 0);
-            usb_hid_keyboard_press(DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY);
+            if (action->modifier != 0 || action->key_code != 0) {
+                usb_hid_keyboard_press(action->modifier, action->key_code);
+            }
             break;
         case ACTION_VOICE_RELEASE:
             // Release Voice Hotkey and stop audio session

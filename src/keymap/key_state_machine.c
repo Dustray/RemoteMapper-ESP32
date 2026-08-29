@@ -241,7 +241,7 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
                 s->next_repeat_timestamp = now_ms + b->repeat_delay_ms;
             }
 
-            if (b->click_action.type == ACTION_KEYBOARD_HOLD || b->click_action.type == ACTION_CONSUMER_HOLD) {
+            if (b->click_action.type == ACTION_KEYBOARD_HOLD || b->click_action.type == ACTION_CONSUMER_HOLD || b->click_action.type == ACTION_VOICE_HOLD) {
                 emit_action(engine, &b->click_action, raw_key_code, true);
             }
         }
@@ -257,6 +257,9 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
                 emit_action(engine, &rel, raw_key_code, false);
             } else if (b->click_action.type == ACTION_CONSUMER_HOLD) {
                 key_action_t rel = { ACTION_CONSUMER_RELEASE, 0, 0, 0 };
+                emit_action(engine, &rel, raw_key_code, false);
+            } else if (b->click_action.type == ACTION_VOICE_HOLD) {
+                key_action_t rel = { ACTION_VOICE_RELEASE, 0, 0, 0 };
                 emit_action(engine, &rel, raw_key_code, false);
             } else if (b->has_click && !s->long_fired) {
                 if (!b->has_double) {
