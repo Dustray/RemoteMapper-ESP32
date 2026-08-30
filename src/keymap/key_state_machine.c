@@ -333,14 +333,6 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
                 emit_action(engine, &b->repeat_action, b->source_vk, true);
                 s->next_repeat_timestamp = now_ms + b->repeat_interval_ms;
             }
-
-            // Safety watchdog: If Voice key is held continuously for > 30s without release, auto-release to protect host PC
-            if (b->click_action.type == ACTION_VOICE_HOLD && hold_time >= 30000) {
-                key_action_t rel = { ACTION_VOICE_RELEASE, 0, 0, 0 };
-                s->is_pressed = false;
-                s->release_timestamp = now_ms;
-                emit_action(engine, &rel, b->source_vk, false);
-            }
         } else {
             if (s->waiting_double && (now_ms - s->release_timestamp >= b->double_ms)) {
                 s->waiting_double = false;
