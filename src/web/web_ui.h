@@ -434,6 +434,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <option value="k:0:0x44">F11 (全屏)</option>
                             <option value="k:0:0x45">F12 (开发者工具)</option>
                         </optgroup>
+                        <optgroup label="🖥️ 本地自定义脚本专用键 (F13 ~ F24 无冲突)">
+                            <option value="k:0:0x68">F13 (触发脚本 1)</option>
+                            <option value="k:0:0x69">F14 (触发脚本 2)</option>
+                            <option value="k:0:0x6A">F15 (触发脚本 3)</option>
+                            <option value="k:0:0x6B">F16 (触发脚本 4)</option>
+                            <option value="k:0:0x6C">F17 (触发脚本 5)</option>
+                            <option value="k:0:0x6D">F18 (触发脚本 6)</option>
+                            <option value="k:0:0x6E">F19 (触发脚本 7)</option>
+                            <option value="k:0:0x6F">F20 (触发脚本 8)</option>
+                            <option value="k:0:0x70">F21 (触发脚本 9)</option>
+                            <option value="k:0:0x71">F22 (触发脚本 10)</option>
+                            <option value="k:0:0x72">F23 (触发脚本 11)</option>
+                            <option value="k:0:0x73">F24 (触发脚本 12)</option>
+                        </optgroup>
                         <optgroup label="常用快捷组合键">
                             <option value="k:0x04:0x36">Alt + , (豆包/AI语音助手)</option>
                             <option value="k:0x08:0x0B">Win + H (Windows语音听写)</option>
@@ -524,6 +538,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             'Comma': 0x36, 'Period': 0x37, 'Slash': 0x38, 'CapsLock': 0x39,
             'F1': 0x3A, 'F2': 0x3B, 'F3': 0x3C, 'F4': 0x3D, 'F5': 0x3E, 'F6': 0x3F,
             'F7': 0x40, 'F8': 0x41, 'F9': 0x42, 'F10': 0x43, 'F11': 0x44, 'F12': 0x45,
+            'F13': 0x68, 'F14': 0x69, 'F15': 0x6A, 'F16': 0x6B, 'F17': 0x6C, 'F18': 0x6D,
+            'F19': 0x6E, 'F20': 0x6F, 'F21': 0x70, 'F22': 0x71, 'F23': 0x72, 'F24': 0x73,
             'PrintScreen': 0x46, 'ScrollLock': 0x47, 'Pause': 0x48, 'Insert': 0x49,
             'Home': 0x4A, 'PageUp': 0x4B, 'Delete': 0x4C, 'End': 0x4D, 'PageDown': 0x4E,
             'ArrowRight': 0x4F, 'ArrowLeft': 0x50, 'ArrowDown': 0x51, 'ArrowUp': 0x52

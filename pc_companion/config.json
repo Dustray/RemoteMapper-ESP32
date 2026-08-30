@@ -1,0 +1,57 @@
+{
+    "F13": {
+        "name": "打开计算器",
+        "command": "calc.exe",
+        "enabled": true
+    },
+    "F14": {
+        "name": "打开浏览器网址",
+        "command": "explorer https://gemini.google.com",
+        "enabled": true
+    },
+    "F15": {
+        "name": "打开记事本",
+        "command": "notepad.exe",
+        "enabled": true
+    },
+    "F16": {
+        "name": "运行自定义 Python 任务",
+        "command": "python scripts/demo_task.py",
+        "enabled": true
+    },
+    "F17": {
+        "name": "运行自定义批处理",
+        "command": "scripts/demo_action.bat",
+        "enabled": true
+    },
+    "F19": {
+        "name": "自定义槽位 7",
+        "command": "notepad.exe",
+        "enabled": false
+    },
+    "F20": {
+        "name": "自定义槽位 8",
+        "command": "",
+        "enabled": false
+    },
+    "F21": {
+        "name": "自定义槽位 9",
+        "command": "",
+        "enabled": false
+    },
+    "F22": {
+        "name": "自定义槽位 10",
+        "command": "",
+        "enabled": false
+    },
+    "F23": {
+        "name": "自定义槽位 11",
+        "command": "",
+        "enabled": false
+    },
+    "F24": {
+        "name": "自定义槽位 12",
+        "command": "",
+        "enabled": false
+    }
+}
