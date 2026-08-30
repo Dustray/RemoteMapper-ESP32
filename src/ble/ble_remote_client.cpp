@@ -45,7 +45,7 @@ static bool setup_services_and_handshake();
 
 // Audio Notification Callback (ATVV Char 0x03)
 static void on_audio_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
-    if (s_ble_state != BLE_STATE_TALKING || length == 0) return;
+    if (length == 0) return;
     s_last_audio_ms = millis();
     audio_pipeline_feed_adpcm(&g_audio_pipeline, pData, length);
 }
@@ -98,8 +98,13 @@ static uint8_t s_last_hogp_key = 0;
 // HOGP HID Report Notification Callback
 static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
     if (length < 1) return;
-    
-    // Dump raw bytes for diagnostics
+
+    // 1. Non-keyboard packets (len > 8, e.g. vendor audio/debug reports)
+    if (length > 8) {
+        return; // NEVER process non-keyboard frames as keys!
+    }
+
+    // Dump raw bytes for diagnostics (only for genuine key reports len <= 8)
     String hex_str = "";
     for (size_t i = 0; i < length; i++) {
         char buf[8];
@@ -108,15 +113,14 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
     }
     app_log("HOGP_RAW", "Report (len %d): %s", (int)length, hex_str.c_str());
 
+    // 2. Standard Keyboard & Consumer Reports (len <= 8)
     uint8_t raw_key = 0;
     bool is_pressed = false;
 
-    if (length >= 3) {
+    if (length == 8) {
+        // Standard 8-byte Keyboard Report: [modifiers, reserved, key0..key5]
         if (pData[2] != 0) {
             raw_key = pData[2];
-            is_pressed = true;
-        } else if (pData[0] != 0) {
-            raw_key = pData[0];
             is_pressed = true;
         } else {
             raw_key = s_last_hogp_key;
@@ -133,8 +137,19 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
             raw_key = s_last_hogp_key;
             is_pressed = false;
         }
-    } else {
+    } else if (length == 1) {
         if (pData[0] != 0) {
+            raw_key = pData[0];
+            is_pressed = true;
+        } else {
+            raw_key = s_last_hogp_key;
+            is_pressed = false;
+        }
+    } else if (length >= 3 && length <= 7) {
+        if (pData[2] != 0) {
+            raw_key = pData[2];
+            is_pressed = true;
+        } else if (pData[0] != 0) {
             raw_key = pData[0];
             is_pressed = true;
         } else {
@@ -228,7 +243,7 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
 class ClientCallbacks : public NimBLEClientCallbacks {
     void onConnect(NimBLEClient* pClient) override {
         app_log("BLE", "Remote GATT Connected!");
-        s_ble_state = BLE_STATE_CONNECTED;
+        s_ble_state = BLE_STATE_CONNECTING;
         pClient->secureConnection();
     }
 
@@ -473,7 +488,15 @@ void ble_remote_init(void) {
 
     NimBLEScan* pScan = NimBLEDevice::getScan();
     pScan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks());
-    start_scan();
+    
+    // If we have a saved bound remote, attempt proactive direct connect, otherwise start scan
+    if (s_bound_mac.length() > 0) {
+        s_pending_mac = s_bound_mac;
+        s_pending_addr_type = s_bound_addr_type;
+        s_do_connect = true;
+    } else {
+        start_scan();
+    }
 }
 
 void ble_remote_task(void) {
