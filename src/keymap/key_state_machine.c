@@ -1,6 +1,25 @@
 #include "key_state_machine.h"
 #include "app_config.h"
 #include <string.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+
+static SemaphoreHandle_t s_key_engine_mutex = NULL;
+
+static void key_engine_lock(void) {
+    if (!s_key_engine_mutex) {
+        s_key_engine_mutex = xSemaphoreCreateRecursiveMutex();
+    }
+    if (s_key_engine_mutex) {
+        xSemaphoreTakeRecursive(s_key_engine_mutex, portMAX_DELAY);
+    }
+}
+
+static void key_engine_unlock(void) {
+    if (s_key_engine_mutex) {
+        xSemaphoreGiveRecursive(s_key_engine_mutex);
+    }
+}
 
 static int find_binding_index(const key_mapper_engine_t *engine, uint8_t raw_key) {
     if (!engine) return -1;
@@ -184,37 +203,47 @@ void key_engine_load_defaults(key_mapper_engine_t *engine) {
 
 bool key_engine_set_binding(key_mapper_engine_t *engine, const key_binding_t *binding) {
     if (!engine || !binding) return false;
+    key_engine_lock();
     int idx = find_binding_index(engine, binding->source_vk);
     if (idx >= 0) {
         engine->bindings[idx] = *binding;
+        key_engine_unlock();
         return true;
     }
     if (engine->binding_count < MAX_KEY_BINDINGS) {
         engine->bindings[engine->binding_count++] = *binding;
+        key_engine_unlock();
         return true;
     }
+    key_engine_unlock();
     return false;
 }
 
 bool key_engine_get_binding(const key_mapper_engine_t *engine, uint8_t source_vk, key_binding_t *out_binding) {
     if (!engine || !out_binding) return false;
+    key_engine_lock();
     int idx = find_binding_index(engine, source_vk);
     if (idx >= 0) {
         *out_binding = engine->bindings[idx];
+        key_engine_unlock();
         return true;
     }
+    key_engine_unlock();
     return false;
 }
 
 void key_engine_init(key_mapper_engine_t *engine, key_output_callback_t cb) {
     if (!engine) return;
+    key_engine_lock();
     memset(engine, 0, sizeof(key_mapper_engine_t));
     engine->output_cb = cb;
     key_engine_load_defaults(engine);
+    key_engine_unlock();
 }
 
 void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool is_pressed, uint32_t now_ms) {
     if (!engine) return;
+    key_engine_lock();
 
     // Immediately record telemetry on EVERY single button state change
     engine->last_telemetry.source_vk = raw_key_code;
@@ -222,7 +251,10 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
     engine->last_telemetry.timestamp = now_ms;
 
     int idx = find_binding_index(engine, raw_key_code);
-    if (idx < 0) return;
+    if (idx < 0) {
+        key_engine_unlock();
+        return;
+    }
 
     key_binding_t *b = &engine->bindings[idx];
     key_slot_state_t *s = &engine->states[idx];
@@ -279,10 +311,12 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
             }
         }
     }
+    key_engine_unlock();
 }
 
 void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
     if (!engine) return;
+    key_engine_lock();
 
     for (size_t i = 0; i < engine->binding_count; i++) {
         key_binding_t *b = &engine->bindings[i];
@@ -315,10 +349,12 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
             }
         }
     }
+    key_engine_unlock();
 }
 
 void key_engine_release_all(key_mapper_engine_t *engine, uint32_t now_ms) {
     if (!engine) return;
+    key_engine_lock();
 
     for (size_t i = 0; i < engine->binding_count; i++) {
         key_binding_t *b = &engine->bindings[i];
@@ -330,4 +366,5 @@ void key_engine_release_all(key_mapper_engine_t *engine, uint32_t now_ms) {
         s->waiting_double = false;
         s->press_count = 0;
     }
+    key_engine_unlock();
 }

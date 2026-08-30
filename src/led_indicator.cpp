@@ -59,7 +59,9 @@ void led_indicator_init(void) {
 
 void led_indicator_set(led_state_t state) {
     if (state == LED_STATE_HID_KEY_PRESS || state == LED_STATE_MIC_KEY_PRESS) return; // Use trigger for flashes
+    s_is_flashing = false;
     s_current_base_state = state;
+    update_hardware_led(state);
 }
 
 void led_indicator_trigger_key(bool is_voice_key) {

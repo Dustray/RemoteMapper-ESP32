@@ -21,6 +21,7 @@ static void ble_task_core0(void* param) {
 
     while (true) {
         ble_remote_task();
+        key_engine_tick(&g_key_engine, millis());
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
@@ -80,16 +81,13 @@ void loop() {
     // 1. Service TinyUSB & Audio push
     usb_composite_task();
 
-    // 2. Service Key State Machine timers (long press, double click, repeat)
-    key_engine_tick(&g_key_engine, now);
-
-    // 3. Service Wi-Fi & DNS tasks
+    // 2. Service Wi-Fi & DNS tasks
     wifi_manager_task();
 
-    // 4. Service HTTP Web Server
+    // 3. Service HTTP Web Server
     web_server_task();
 
-    // 5. Service Serial / WebSerial CLI commands
+    // 4. Service Serial / WebSerial CLI commands
     cli_manager_task();
 
     // No delay here — USB audio task handles its own timing via vTaskDelayUntil

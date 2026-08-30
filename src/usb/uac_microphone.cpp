@@ -150,12 +150,6 @@ static bool uac_driver_control_xfer_cb(uint8_t rhport, uint8_t stage,
                 s_uac_alt       = alt;
                 s_uac_streaming = (alt == 1);
                 
-                if (s_uac_streaming) {
-                    led_indicator_set(LED_STATE_MIC_STREAMING);
-                } else {
-                    led_indicator_set(LED_STATE_CONNECTED);
-                }
-                
                 // Force release endpoint to clear stuck busy flags from aborted transfers
                 usbd_edpt_close(rhport, (uint8_t)(s_uac_ep_in | 0x80));
 
