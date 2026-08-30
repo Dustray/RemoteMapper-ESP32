@@ -65,18 +65,16 @@ static void on_ctl_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, siz
         key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, true, millis());
         app_log("ATVV", ">>> Voice button PRESSED (session %d)", s_session_id);
     }
-    // AUDIO_STOP / MIC_CLOSED / release op:
-    else if (op == 0x00) {
-        if (s_ble_state == BLE_STATE_TALKING) {
-            s_ble_state = BLE_STATE_CONNECTED;
-            key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, false, millis());
-            app_log("ATVV", "<<< Voice button RELEASED");
+    // AUDIO_STOP / MIC_CLOSED / release op (0x00 or 0x08):
+    else if (op == 0x00 || op == 0x08) {
+        s_ble_state = BLE_STATE_CONNECTED;
+        key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, false, millis());
+        app_log("ATVV", "<<< Voice button RELEASED (op=0x%02X)", op);
 
-            // Re-arm remote HTT standby
-            if (s_char_cmd != nullptr) {
-                uint8_t cmd_open[] = { 0x0C, 0x00 };
-                s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
-            }
+        // Re-arm remote HTT standby
+        if (s_char_cmd != nullptr) {
+            uint8_t cmd_open[] = { 0x0C, 0x00 };
+            s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
         }
     }
     // CAPS_RESP: op == 0x0B
@@ -117,40 +115,45 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
         if (pData[2] != 0) {
             raw_key = pData[2];
             is_pressed = true;
-            s_last_hogp_key = raw_key;
         } else if (pData[0] != 0) {
             raw_key = pData[0];
             is_pressed = true;
-            s_last_hogp_key = raw_key;
         } else {
             raw_key = s_last_hogp_key;
             is_pressed = false;
-            s_last_hogp_key = 0;
         }
     } else if (length == 2) {
         if (pData[1] != 0) {
             raw_key = pData[1];
             is_pressed = true;
-            s_last_hogp_key = raw_key;
         } else if (pData[0] != 0) {
             raw_key = pData[0];
             is_pressed = true;
-            s_last_hogp_key = raw_key;
         } else {
             raw_key = s_last_hogp_key;
             is_pressed = false;
-            s_last_hogp_key = 0;
         }
     } else {
         if (pData[0] != 0) {
             raw_key = pData[0];
             is_pressed = true;
-            s_last_hogp_key = raw_key;
         } else {
             raw_key = s_last_hogp_key;
             is_pressed = false;
-            s_last_hogp_key = 0;
         }
+    }
+
+    // Auto-release previous key if a new key is pressed without an explicit all-zero release report
+    if (s_last_hogp_key != 0 && is_pressed && raw_key != s_last_hogp_key) {
+        app_log("HOGP", "Auto-Release key 0x%02X due to new key 0x%02X", s_last_hogp_key, raw_key);
+        key_engine_feed_key(&g_key_engine, s_last_hogp_key, false, millis());
+        s_last_hogp_key = 0;
+    }
+
+    if (is_pressed) {
+        s_last_hogp_key = raw_key;
+    } else {
+        s_last_hogp_key = 0;
     }
 
     if (raw_key != 0) {
@@ -164,9 +167,13 @@ static bool is_target_remote(NimBLEAdvertisedDevice* dev) {
     String addr = dev->getAddress().toString().c_str();
     addr.toLowerCase();
 
-    // 1. Exact match with previously bound remote
-    if (s_bound_mac.length() > 0 && addr.equalsIgnoreCase(s_bound_mac)) {
-        return true;
+    // 1. Exact match with previously bound remote (case-insensitive)
+    if (s_bound_mac.length() > 0) {
+        String bound = s_bound_mac;
+        bound.toLowerCase();
+        if (addr.equals(bound)) {
+            return true;
+        }
     }
 
     // 2. Name contains Xiaomi / Remote keywords in Chinese & English
@@ -207,7 +214,7 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
                     (int)advertisedDevice->getAddress().getType());
         }
 
-        if (s_ble_state == BLE_STATE_SCANNING && is_target_remote(advertisedDevice) && !s_do_connect) {
+        if (s_ble_state <= BLE_STATE_SCANNING && is_target_remote(advertisedDevice) && !s_do_connect) {
             app_log("BLE", "Matching Target Remote: %s (%s), queueing connection...", name.c_str(), addr.c_str());
             NimBLEDevice::getScan()->stop();
             if (s_pending_adv_device) delete s_pending_adv_device;
@@ -228,9 +235,17 @@ class ClientCallbacks : public NimBLEClientCallbacks {
     void onDisconnect(NimBLEClient* pClient) override {
         app_log("BLE", "Remote Disconnected");
         s_ble_state = BLE_STATE_DISCONNECTED;
+        s_do_connect = false;
         s_char_cmd = nullptr;
         s_char_aud = nullptr;
         s_char_ctl = nullptr;
+        s_last_hogp_key = 0;
+        key_engine_release_all(&g_key_engine, millis());
+        usb_hid_keyboard_release();
+        usb_hid_consumer_release();
+        audio_pipeline_stop_session(&g_audio_pipeline);
+        led_indicator_set(LED_STATE_WAIT_CONNECTION);
+        start_scan();
     }
 
     bool onConnParamsUpdateRequest(NimBLEClient* pClient, const ble_gap_upd_params* params) override {
@@ -257,8 +272,8 @@ static void start_scan() {
     pScan->setActiveScan(true);
     pScan->setInterval(BLE_SCAN_INTERVAL_MS);
     pScan->setWindow(BLE_SCAN_WINDOW_MS);
-    pScan->start(6, false);
-    app_log("BLE", "Scanning for Xiaomi Bluetooth Remote...");
+    pScan->start(0, false); // 0 = continuous scan until stopped
+    app_log("BLE", "Continuous scanning for Xiaomi Bluetooth Remote active...");
 }
 
 static bool setup_services_and_handshake() {
@@ -374,6 +389,7 @@ static bool do_connect_adv_device(NimBLEAdvertisedDevice* advDevice) {
     if (!s_client->connect(advDevice)) {
         app_log("BLE", "Connection Failed to %s", advDevice->getAddress().toString().c_str());
         s_ble_state = BLE_STATE_DISCONNECTED;
+        start_scan();
         return false;
     }
 
@@ -420,6 +436,7 @@ static bool do_connect_mac(const String& mac_str, uint8_t addr_type) {
     if (!ok) {
         app_log("BLE", "Direct connection to %s failed on both address types", mac_str.c_str());
         s_ble_state = BLE_STATE_DISCONNECTED;
+        start_scan();
         return false;
     }
 
@@ -475,26 +492,24 @@ void ble_remote_task(void) {
         }
     }
 
-    // 2. Auto Re-scan only when truly disconnected, no pending connects, and scan is inactive
-    if (s_ble_state == BLE_STATE_DISCONNECTED && !s_do_connect) {
-        if (!NimBLEDevice::getScan()->isScanning() && (now - s_last_scan_ms > 4000)) {
+    // 2. Auto Re-scan: If not connected, not connecting, and scan is inactive, restart continuous scan
+    if (s_ble_state < BLE_STATE_CONNECTING && !s_do_connect) {
+        if (!NimBLEDevice::getScan()->isScanning()) {
             start_scan();
         }
     }
 
-    // 3. Audio silence watchdog (if voice key released packet dropped)
+    // 3. Audio silence watchdog (if voice key released packet dropped over BLE)
     if (s_ble_state == BLE_STATE_TALKING) {
         if (now - s_last_audio_ms > BLE_SILENCE_WATCHDOG_MS) {
             app_log("ATVV", "Silence watchdog expired -> force stopping speech");
             s_ble_state = BLE_STATE_CONNECTED;
-            key_action_t act = { ACTION_VOICE_RELEASE, DEFAULT_VOICE_MODIFIER, DEFAULT_VOICE_KEY, 0 };
-            usb_hid_dispatch_action(&act);
-        } else if (now - s_last_extend_ms > BLE_KEEP_ALIVE_INTERVAL) {
-            // Keep alive extend active session
+            key_engine_feed_key(&g_key_engine, MI_KEY_VOICE, false, now);
+
+            // Re-arm remote HTT standby
             if (s_char_cmd != nullptr) {
-                uint8_t cmd_extend[] = { 0x0E, s_session_id };
-                s_char_cmd->writeValue(cmd_extend, sizeof(cmd_extend), false);
-                s_last_extend_ms = now;
+                uint8_t cmd_open[] = { 0x0C, 0x00 };
+                s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
             }
         }
     }
@@ -545,6 +560,12 @@ String ble_remote_scan_devices_json(void) {
 
     String out;
     serializeJson(doc, out);
+
+    // Resume continuous background scan if not connected
+    if (s_ble_state < BLE_STATE_CONNECTED && !s_do_connect) {
+        start_scan();
+    }
+
     return out;
 }
 

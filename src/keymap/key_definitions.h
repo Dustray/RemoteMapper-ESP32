@@ -25,7 +25,8 @@ extern "C" {
 #define MI_KEY_LEFT         0x50    // D-Pad Left
 #define MI_KEY_RIGHT        0x4F    // D-Pad Right
 #define MI_KEY_OK           0x28    // OK / Enter
-#define MI_KEY_VOICE        0x04    // Voice button
+#define MI_KEY_VOICE        0x04    // Voice button (ATVV)
+#define MI_KEY_VOICE_ALT    0x3E    // Voice button (HOGP)
 
 // ==========================================
 // 2. USB HID Keyboard Modifier Bitmasks

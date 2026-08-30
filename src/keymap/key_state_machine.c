@@ -13,6 +13,7 @@ static int find_binding_index(const key_mapper_engine_t *engine, uint8_t raw_key
         if (raw_key == MI_KEY_HOME_ALT && engine->bindings[i].source_vk == MI_KEY_HOME) return (int)i;
         if (raw_key == MI_KEY_MENU_ALT && engine->bindings[i].source_vk == MI_KEY_MENU) return (int)i;
         if (raw_key == MI_KEY_TV_ALT && engine->bindings[i].source_vk == MI_KEY_TV) return (int)i;
+        if (raw_key == MI_KEY_VOICE_ALT && engine->bindings[i].source_vk == MI_KEY_VOICE) return (int)i;
     }
     return -1;
 }
@@ -298,6 +299,14 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
                 emit_action(engine, &b->repeat_action, b->source_vk, true);
                 s->next_repeat_timestamp = now_ms + b->repeat_interval_ms;
             }
+
+            // Safety watchdog: If Voice key is held continuously for > 30s without release, auto-release to protect host PC
+            if (b->click_action.type == ACTION_VOICE_HOLD && hold_time >= 30000) {
+                key_action_t rel = { ACTION_VOICE_RELEASE, 0, 0, 0 };
+                s->is_pressed = false;
+                s->release_timestamp = now_ms;
+                emit_action(engine, &rel, b->source_vk, false);
+            }
         } else {
             if (s->waiting_double && (now_ms - s->release_timestamp >= b->double_ms)) {
                 s->waiting_double = false;
@@ -305,5 +314,20 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
                 emit_action(engine, &b->click_action, b->source_vk, false);
             }
         }
+    }
+}
+
+void key_engine_release_all(key_mapper_engine_t *engine, uint32_t now_ms) {
+    if (!engine) return;
+
+    for (size_t i = 0; i < engine->binding_count; i++) {
+        key_binding_t *b = &engine->bindings[i];
+        key_slot_state_t *s = &engine->states[i];
+
+        if (s->is_pressed) {
+            key_engine_feed_key(engine, b->source_vk, false, now_ms);
+        }
+        s->waiting_double = false;
+        s->press_count = 0;
     }
 }
