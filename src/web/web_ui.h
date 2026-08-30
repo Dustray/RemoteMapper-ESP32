@@ -145,11 +145,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         /* Ultra-Simple Interactive Remap Modal */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-        .modal { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); max-width: 540px; width: 100%; padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.6); }
-        
-        .trigger-tabs { display: flex; background: #090d16; border: 1px solid var(--border-color); border-radius: 10px; padding: 4px; gap: 4px; margin-bottom: 18px; }
-        .trigger-btn { flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 8px 0; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s; }
-        .trigger-btn.active { background: #1e293b; color: var(--accent-cyan); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+        .modal { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); max-width: 520px; width: 100%; padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.6); }
 
         .key-recorder-box {
             border: 2px dashed var(--accent-blue);
@@ -169,15 +165,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         }
         .key-badge-display { font-size: 24px; font-weight: 800; color: #fff; margin-top: 8px; min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
         .kbd-chip { background: #0f172a; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 4px 12px; border-radius: 6px; font-size: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-
-        .preset-section { margin-top: 14px; }
-        .preset-title { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
-        .preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-        .preset-chip {
-            background: #0b0f17; border: 1px solid var(--border-color); color: var(--text-main);
-            padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s;
-        }
-        .preset-chip:hover { background: var(--bg-hover); border-color: var(--accent-cyan); color: var(--accent-cyan); }
 
         .btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.9; }
@@ -376,21 +363,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <!-- Ultra-Simple Interactive Remap Modal -->
     <div class="modal-overlay" id="remap-modal" onclick="if(event.target === this) closeRemapModal()">
         <div class="modal">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="font-size: 18px;" id="modal-title">设置按键映射</h3>
                 <span id="modal-vk-badge" style="font-size: 12px; color: var(--accent-cyan); font-family: monospace;">0x00</span>
             </div>
 
-            <!-- Trigger Mode Selector -->
-            <div class="trigger-tabs">
-                <button class="trigger-btn active" id="trig-click" onclick="setModalTrigger('click')">短按 (Click)</button>
-                <button class="trigger-btn" id="trig-long" onclick="setModalTrigger('long')">长按 (Long Press)</button>
-                <button class="trigger-btn" id="trig-double" onclick="setModalTrigger('double')">双击 (Double Click)</button>
+            <!-- Voice Key Exclusive Banner -->
+            <div id="voice-key-banner" style="display:none; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: #93c5fd; line-height: 1.5;">
+                🎙️ <b>语音对讲专属模式</b>：按住遥控器语音键时开始录音并注入快捷键，松开时停止录音并释放快捷键。
             </div>
 
             <!-- Keyboard Direct Capture Box -->
             <div class="key-recorder-box" id="key-recorder-box" tabindex="0" onclick="startKeyboardRecording()">
-                <div style="font-size: 13px; color: var(--text-muted);">
+                <div style="font-size: 13px; color: var(--text-muted);" id="recorder-instruction">
                     ⌨️ <b>直接在键盘上按下任意按键或快捷键</b>（支持单键与 Ctrl/Alt/Win/Shift 组合键）
                 </div>
                 <div class="key-badge-display" id="recorded-badge-display">
@@ -398,54 +383,97 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 </div>
             </div>
 
-            <!-- Special Features & Multimedia Shortcuts -->
-            <div class="preset-section">
-                <div class="preset-title">⚡ 一键设置常用多媒体与系统功能</div>
-                <div class="preset-chips">
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 545, '🔊 音量 +')">🔊 音量 +</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 546, '🔉 音量 -')">🔉 音量 -</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 547, '🔇 静音')">🔇 静音</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 516, '⏯️ 播放/暂停')">⏯️ 播放/暂停</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 537, '⏭️ 下一曲')">⏭️ 下一曲</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 538, '⏮️ 上一曲')">⏮️ 上一曲</button>
-                    <button class="preset-chip" onclick="applySpecialAction(1, 8, 7, 0, '💻 显示桌面 (Win+D)')">💻 显示桌面 (Win+D)</button>
-                    <button class="preset-chip" onclick="applySpecialAction(1, 4, 43, 0, '🔀 任务切换 (Alt+Tab)')">🔀 任务切换 (Alt+Tab)</button>
-                    <button class="preset-chip" onclick="applySpecialAction(1, 8, 11, 0, '🎤 语音听写 (Win+H)')">🎤 语音听写 (Win+H)</button>
-                    <button class="preset-chip" onclick="applySpecialAction(1, 0, 75, 0, '📽️ PPT下一页 (PageDown)')">📽️ PPT下一页</button>
-                    <button class="preset-chip" onclick="applySpecialAction(1, 0, 78, 0, '📽️ PPT上一页 (PageUp)')">📽️ PPT上一页</button>
-                    <button class="preset-chip" onclick="applySpecialAction(4, 0, 0, 530, '🌙 系统休眠')">🌙 系统休眠</button>
+            <!-- Advanced Manual Key Code & Quick Select Area (Always Expanded) -->
+            <div style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🛠️ 快捷选择与键码微调</span>
+                </div>
+
+                <!-- Quick Key Dropdown -->
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">⚡ 快速选择特殊按键 / 多媒体功能</label>
+                    <select id="quick-key-select" onchange="onQuickKeySelect(this.value)" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
+                        <option value="">-- 点击选择常见按键 / 组合键 / 多媒体 --</option>
+                        <optgroup label="常用控制键">
+                            <option value="k:0:0x28">回车键 (Enter)</option>
+                            <option value="k:0:0x29">Esc 键 (Escape)</option>
+                            <option value="k:0:0x2C">空格键 (Space)</option>
+                            <option value="k:0:0x2B">Tab 键</option>
+                            <option value="k:0:0x2A">退格键 (Backspace)</option>
+                            <option value="k:0:0x4C">删除键 (Delete)</option>
+                            <option value="k:0:0x39">大写锁定 (CapsLock)</option>
+                            <option value="k:0:0x46">屏幕截图 (PrintScreen)</option>
+                        </optgroup>
+                        <optgroup label="单修饰键 (直接触发)">
+                            <option value="m:0x08:0">Windows 徽标键 (Win)</option>
+                            <option value="m:0x01:0">Control 键 (Ctrl)</option>
+                            <option value="m:0x04:0">Alt 键</option>
+                            <option value="m:0x02:0">Shift 键</option>
+                        </optgroup>
+                        <optgroup label="方向与翻页导航">
+                            <option value="k:0:0x52">方向上 (Arrow Up)</option>
+                            <option value="k:0:0x51">方向下 (Arrow Down)</option>
+                            <option value="k:0:0x50">方向左 (Arrow Left)</option>
+                            <option value="k:0:0x4F">方向右 (Arrow Right)</option>
+                            <option value="k:0:0x4B">上一页 (PageUp)</option>
+                            <option value="k:0:0x4E">下一页 (PageDown)</option>
+                            <option value="k:0:0x4A">行首 (Home)</option>
+                            <option value="k:0:0x4D">行尾 (End)</option>
+                        </optgroup>
+                        <optgroup label="功能键 (F1 ~ F12)">
+                            <option value="k:0:0x3A">F1</option>
+                            <option value="k:0:0x3B">F2</option>
+                            <option value="k:0:0x3C">F3</option>
+                            <option value="k:0:0x3D">F4</option>
+                            <option value="k:0:0x3E">F5 (刷新)</option>
+                            <option value="k:0:0x3F">F6</option>
+                            <option value="k:0:0x40">F7</option>
+                            <option value="k:0:0x41">F8</option>
+                            <option value="k:0:0x42">F9</option>
+                            <option value="k:0:0x43">F10</option>
+                            <option value="k:0:0x44">F11 (全屏)</option>
+                            <option value="k:0:0x45">F12 (开发者工具)</option>
+                        </optgroup>
+                        <optgroup label="常用快捷组合键">
+                            <option value="k:0x04:0x36">Alt + , (豆包/AI语音助手)</option>
+                            <option value="k:0x08:0x0B">Win + H (Windows语音听写)</option>
+                            <option value="k:0x08:0x07">Win + D (显示/隐藏桌面)</option>
+                            <option value="k:0x04:0x2B">Alt + Tab (切换窗口任务)</option>
+                            <option value="k:0x04:0x3D">Alt + F4 (关闭当前窗口)</option>
+                            <option value="k:0x01:0x06">Ctrl + C (复制)</option>
+                            <option value="k:0x01:0x19">Ctrl + V (粘贴)</option>
+                            <option value="k:0x01:0x1D">Ctrl + Z (撤销)</option>
+                        </optgroup>
+                        <optgroup label="多媒体与系统控制 (仅普通按键)" id="quick-optgroup-media">
+                            <option value="c:0:545">🔊 音量增加 (Volume Up)</option>
+                            <option value="c:0:546">🔉 音量减少 (Volume Down)</option>
+                            <option value="c:0:547">🔇 静音 (Mute)</option>
+                            <option value="c:0:516">⏯️ 播放 / 暂停 (Play/Pause)</option>
+                            <option value="c:0:537">⏭️ 下一曲 (Next Track)</option>
+                            <option value="c:0:538">⏮️ 上一曲 (Previous Track)</option>
+                            <option value="c:0:530">🌙 系统休眠 (Sleep)</option>
+                            <option value="c:0:558">🔙 网页/应用返回 (AC Back)</option>
+                            <option value="c:0:557">⌂ 网页/系统主页 (AC Home)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Numerical Inputs -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">修饰键 (Mod: 1=Ctrl, 2=Shift, 4=Alt, 8=Win)</label>
+                        <input type="number" id="adv-mod" value="0" min="0" max="255" oninput="onAdvInputChanged()" style="width:100%; padding:8px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">按键码 (HID Key 或 Consumer 代码)</label>
+                        <input type="number" id="adv-code" value="0" min="0" max="65535" oninput="onAdvInputChanged()" style="width:100%; padding:8px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
+                    </div>
                 </div>
             </div>
 
-            <!-- Advanced Manual Key Code Input Toggle -->
-            <div style="margin-top: 16px;">
-                <details style="font-size: 12px; color: var(--text-muted);">
-                    <summary style="cursor: pointer; margin-bottom: 8px;">🛠️ 高级选项：直接输入 USB HID 键码或修饰键</summary>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px;">
-                        <div>
-                            <label style="display:block; margin-bottom:4px;">动作类型</label>
-                            <select id="adv-act-type" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
-                                <option value="1">键盘点击 (TAP)</option>
-                                <option value="2">键盘长按 (HOLD)</option>
-                                <option value="4">多媒体 (Consumer)</option>
-                                <option value="7">语音对讲 (Voice)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block; margin-bottom:4px;">修饰键 (Mod)</label>
-                            <input type="number" id="adv-mod" value="0" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
-                        </div>
-                        <div>
-                            <label style="display:block; margin-bottom:4px;">按键码 (Key/Cons)</label>
-                            <input type="number" id="adv-code" value="0" style="width:100%; padding:6px; background:#090d16; border:1px solid #243247; color:#fff; border-radius:6px;">
-                        </div>
-                    </div>
-                </details>
-            </div>
-
             <!-- Action Buttons -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <button class="btn btn-outline" style="font-size: 12px; color: var(--accent-red); border-color: rgba(239,68,68,0.3);" onclick="clearCurrentTriggerBinding()">🗑️ 清空该触发</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <button class="btn btn-outline" style="font-size: 13px; color: var(--accent-red); border-color: rgba(239,68,68,0.3);" onclick="clearCurrentKeyBinding()">🗑️ 清空映射 (禁用此键)</button>
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-outline" onclick="closeRemapModal()">取消</button>
                     <button class="btn" onclick="saveRemapConfig()">💾 保存映射</button>
@@ -579,10 +607,22 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         function openRemapModal(keyVk, keyName) {
             editingKey = keyVk;
-            activeTrigger = 'click';
-            document.getElementById('modal-title').innerText = `设置 ${keyName} 映射`;
+            const isVoice = (keyVk === 0x04 || keyVk === 0x3E);
+            
+            document.getElementById('modal-title').innerText = isVoice ? '设置 语音键 (Voice) 呼出快捷键' : `设置 ${keyName} 映射`;
             document.getElementById('modal-vk-badge').innerText = '0x' + keyVk.toString(16).toUpperCase().padStart(2, '0');
-            setModalTrigger('click');
+            document.getElementById('voice-key-banner').style.display = isVoice ? 'block' : 'none';
+            document.getElementById('quick-optgroup-media').style.display = isVoice ? 'none' : 'block';
+
+            // Find current binding
+            const b = currentKeymap.bindings.find(x => x.source_vk === keyVk || (isVoice && x.source_vk === 0x04));
+            if (b && b.has_click) {
+                renderCurrentAction(b.click_type, b.click_mod, b.click_key, b.click_cons);
+            } else {
+                renderCurrentAction(0, 0, 0, 0);
+            }
+
+            document.getElementById('quick-key-select').value = '';
             document.getElementById('remap-modal').style.display = 'flex';
             startKeyboardRecording();
         }
@@ -591,38 +631,29 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             document.getElementById('remap-modal').style.display = 'none';
         }
 
-        function setModalTrigger(mode) {
-            activeTrigger = mode;
-            document.getElementById('trig-click').classList.toggle('active', mode === 'click');
-            document.getElementById('trig-long').classList.toggle('active', mode === 'long');
-            document.getElementById('trig-double').classList.toggle('active', mode === 'double');
-            
-            // Load current binding for this trigger mode
-            const b = currentKeymap.bindings.find(x => x.source_vk === editingKey);
-            if (b) {
-                if (mode === 'click' && b.has_click) {
-                    renderCurrentAction(b.click_type, b.click_mod, b.click_key, b.click_cons);
-                } else if (mode === 'long' && b.has_long) {
-                    renderCurrentAction(b.long_type, b.long_mod, b.long_key, b.long_cons);
-                } else if (mode === 'double' && b.has_double) {
-                    renderCurrentAction(b.double_type, b.double_mod, b.double_key, b.double_cons);
-                } else {
-                    renderCurrentAction(0, 0, 0, 0);
-                }
-            } else {
-                renderCurrentAction(0, 0, 0, 0);
-            }
-        }
-
         function renderCurrentAction(type, mod, key, cons) {
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+            if (isVoice) {
+                type = 7; // Fixed to ACTION_VOICE_HOLD
+                cons = 0;
+            } else if (cons > 0) {
+                type = 5; // Fixed to ACTION_CONSUMER_HOLD
+                key = 0;
+                mod = 0;
+            } else if (key > 0 || mod > 0) {
+                type = 2; // Fixed to ACTION_KEYBOARD_HOLD
+                cons = 0;
+            } else {
+                type = 0;
+            }
+
             currentActionState = { type, mod, key, cons };
-            document.getElementById('adv-act-type').value = type || 1;
             document.getElementById('adv-mod').value = mod || 0;
             document.getElementById('adv-code').value = key || cons || 0;
 
             const display = document.getElementById('recorded-badge-display');
-            if (type === 0 || (!key && !cons)) {
-                display.innerHTML = '<span style="color: var(--text-muted); font-size: 15px; font-weight: normal;">未设置（点击录制或从下方选择）</span>';
+            if (type === 0 || (!key && !cons && !mod)) {
+                display.innerHTML = '<span style="color: var(--text-muted); font-size: 15px; font-weight: normal;">未设置（点击此处敲键盘录制，或从下方快速选择）</span>';
                 return;
             }
 
@@ -632,13 +663,22 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (mod & 0x02) chips.push('Shift');
             if (mod & 0x08) chips.push('Win');
 
-            if (type === 4) {
-                // Consumer multimedia
-                const consMap = { 545: '音量 +', 546: '音量 -', 547: '静音', 516: '播放/暂停', 537: '下一曲', 538: '上一曲', 558: '返回', 530: '休眠' };
+            if (cons > 0) {
+                const consMap = {
+                    545: '🔊 音量 +',
+                    546: '🔉 音量 -',
+                    547: '🔇 静音',
+                    516: '⏯️ 播放/暂停',
+                    537: '⏭️ 下一曲',
+                    538: '⏮️ 上一曲',
+                    539: '⏹️ 停止',
+                    530: '🌙 系统休眠',
+                    558: '🔙 网页返回',
+                    557: '⌂ 网页主页'
+                };
                 chips.push(consMap[cons] || `多媒体 0x${cons.toString(16)}`);
-            } else {
-                // Find key label
-                let keyName = `Key(0x${key.toString(16)})`;
+            } else if (key > 0) {
+                let keyName = `Key(0x${key.toString(16).toUpperCase()})`;
                 for (let k in DOM_TO_HID) {
                     if (DOM_TO_HID[k] === key) {
                         keyName = k.replace('Key', '').replace('Digit', '').replace('Arrow', '');
@@ -649,6 +689,42 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
 
             display.innerHTML = chips.map(c => `<span class="kbd-chip">${c}</span>`).join(' + ');
+        }
+
+        function onQuickKeySelect(val) {
+            if (!val) return;
+            const parts = val.split(':');
+            const prefix = parts[0];
+            const mod = parseInt(parts[1], 16) || 0;
+            const code = parseInt(parts[2], parts[2].startsWith('0x') ? 16 : 10) || 0;
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+
+            if (prefix === 'c') {
+                if (isVoice) {
+                    alert('语音键专用于语音录音与呼出快捷键，不可设为多媒体键');
+                    document.getElementById('quick-key-select').value = '';
+                    return;
+                }
+                renderCurrentAction(5, 0, 0, code);
+            } else if (prefix === 'm') {
+                renderCurrentAction(isVoice ? 7 : 2, mod, 0, 0);
+            } else if (prefix === 'k') {
+                renderCurrentAction(isVoice ? 7 : 2, mod, code, 0);
+            }
+        }
+
+        function onAdvInputChanged() {
+            const mod = parseInt(document.getElementById('adv-mod').value) || 0;
+            const code = parseInt(document.getElementById('adv-code').value) || 0;
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+
+            if (isVoice) {
+                renderCurrentAction(7, mod, code, 0);
+            } else if (code >= 500) {
+                renderCurrentAction(5, 0, 0, code);
+            } else {
+                renderCurrentAction((code > 0 || mod > 0) ? 2 : 0, mod, code, 0);
+            }
         }
 
         function startKeyboardRecording() {
@@ -662,7 +738,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const modal = document.getElementById('remap-modal');
             if (modal.style.display !== 'flex') return;
 
-            // If user is typing in advanced inputs, let it through
+            // If user is typing in advanced numeric inputs, let it through
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
             e.preventDefault();
@@ -678,64 +754,61 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (e.metaKey) mod |= 0x08; // LGUI (Win)
 
             const hidCode = DOM_TO_HID[e.code] || 0;
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+
             if (hidCode > 0) {
-                renderCurrentAction(1, mod, hidCode, 0);
+                renderCurrentAction(isVoice ? 7 : 2, mod, hidCode, 0);
             }
         });
 
-        function applySpecialAction(type, mod, key, cons, label) {
-            renderCurrentAction(type, mod, key, cons);
-        }
-
-        function clearCurrentTriggerBinding() {
+        function clearCurrentKeyBinding() {
             renderCurrentAction(0, 0, 0, 0);
+            document.getElementById('quick-key-select').value = '';
         }
 
         async function saveRemapConfig() {
-            // Read either captured action or advanced override
-            const advType = parseInt(document.getElementById('adv-act-type').value);
-            const advMod = parseInt(document.getElementById('adv-mod').value);
-            const advCode = parseInt(document.getElementById('adv-code').value);
-
-            let actType = currentActionState.type;
-            let mod = currentActionState.mod;
-            let key = (actType === 4) ? 0 : currentActionState.key;
-            let cons = (actType === 4) ? currentActionState.cons : 0;
-
-            if (advType && advCode) {
-                actType = advType;
-                mod = advMod;
-                if (actType === 4) cons = advCode;
-                else key = advCode;
-            }
-
-            let b = currentKeymap.bindings.find(x => x.source_vk === editingKey);
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+            let b = currentKeymap.bindings.find(x => x.source_vk === editingKey || (isVoice && x.source_vk === 0x04));
             if (!b) {
-                b = { source_vk: editingKey, has_click: false, has_long: false, has_double: false };
+                b = { source_vk: isVoice ? 0x04 : editingKey };
                 currentKeymap.bindings.push(b);
             }
 
-            if (activeTrigger === 'click') {
-                b.has_click = (actType > 0);
-                b.click_type = actType;
+            let actType = currentActionState.type;
+            let mod = currentActionState.mod;
+            let key = currentActionState.key;
+            let cons = currentActionState.cons;
+
+            if (isVoice) {
+                b.source_vk = 0x04;
+                b.has_click = true;
+                b.click_type = 7; // ACTION_VOICE_HOLD
                 b.click_mod = mod;
                 b.click_key = key;
+                b.click_cons = 0;
+            } else if (cons > 0) {
+                b.has_click = true;
+                b.click_type = 5; // ACTION_CONSUMER_HOLD
+                b.click_mod = 0;
+                b.click_key = 0;
                 b.click_cons = cons;
-            } else if (activeTrigger === 'long') {
-                b.has_long = (actType > 0);
-                b.long_ms = 500;
-                b.long_type = actType;
-                b.long_mod = mod;
-                b.long_key = key;
-                b.long_cons = cons;
+            } else if (key > 0 || mod > 0) {
+                b.has_click = true;
+                b.click_type = 2; // ACTION_KEYBOARD_HOLD
+                b.click_mod = mod;
+                b.click_key = key;
+                b.click_cons = 0;
             } else {
-                b.has_double = (actType > 0);
-                b.double_ms = 250;
-                b.double_type = actType;
-                b.double_mod = mod;
-                b.double_key = key;
-                b.double_cons = cons;
+                b.has_click = false;
+                b.click_type = 0;
+                b.click_mod = 0;
+                b.click_key = 0;
+                b.click_cons = 0;
             }
+
+            // Remove legacy complex timers for 100% natural transparent physical forwarding
+            b.has_long = false;
+            b.has_double = false;
 
             await fetch('/api/keymap/save', {
                 method: 'POST',
