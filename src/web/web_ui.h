@@ -587,58 +587,58 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <select id="quick-key-select" onchange="onQuickKeySelect(this.value)" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
                         <option value="">-- 点击选择常见按键 / 组合键 / 多媒体 --</option>
                         <optgroup label="常用控制键">
-                            <option value="k:0:0x28">回车键 (Enter)</option>
-                            <option value="k:0:0x29">Esc 键 (Escape)</option>
-                            <option value="k:0:0x2C">空格键 (Space)</option>
-                            <option value="k:0:0x2B">Tab 键</option>
-                            <option value="k:0:0x2A">退格键 (Backspace)</option>
-                            <option value="k:0:0x4C">删除键 (Delete)</option>
-                            <option value="k:0:0x39">大写锁定 (CapsLock)</option>
-                            <option value="k:0:0x46">屏幕截图 (PrintScreen)</option>
+                            <option value="k:0x00:0x28">回车键 (Enter - 0x28)</option>
+                            <option value="k:0x00:0x29">Esc 键 (Escape - 0x29)</option>
+                            <option value="k:0x00:0x2C">空格键 (Space - 0x2C)</option>
+                            <option value="k:0x00:0x2B">Tab 键 (0x2B)</option>
+                            <option value="k:0x00:0x2A">退格键 (Backspace - 0x2A)</option>
+                            <option value="k:0x00:0x4C">删除键 (Delete - 0x4C)</option>
+                            <option value="k:0x00:0x39">大写锁定 (CapsLock - 0x39)</option>
+                            <option value="k:0x00:0x46">屏幕截图 (PrintScreen - 0x46)</option>
                         </optgroup>
                         <optgroup label="单修饰键 (直接触发)">
-                            <option value="m:0x08:0">Windows 徽标键 (Win)</option>
-                            <option value="m:0x01:0">Control 键 (Ctrl)</option>
-                            <option value="m:0x04:0">Alt 键</option>
-                            <option value="m:0x02:0">Shift 键</option>
+                            <option value="m:0x08:0x00">Windows 徽标键 (Win - 0x08)</option>
+                            <option value="m:0x01:0x00">Control 键 (Ctrl - 0x01)</option>
+                            <option value="m:0x04:0x00">Alt 键 (0x04)</option>
+                            <option value="m:0x02:0x00">Shift 键 (0x02)</option>
                         </optgroup>
                         <optgroup label="方向与翻页导航">
-                            <option value="k:0:0x52">方向上 (Arrow Up)</option>
-                            <option value="k:0:0x51">方向下 (Arrow Down)</option>
-                            <option value="k:0:0x50">方向左 (Arrow Left)</option>
-                            <option value="k:0:0x4F">方向右 (Arrow Right)</option>
-                            <option value="k:0:0x4B">上一页 (PageUp)</option>
-                            <option value="k:0:0x4E">下一页 (PageDown)</option>
-                            <option value="k:0:0x4A">行首 (Home)</option>
-                            <option value="k:0:0x4D">行尾 (End)</option>
+                            <option value="k:0x00:0x52">方向上 (Arrow Up - 0x52)</option>
+                            <option value="k:0x00:0x51">方向下 (Arrow Down - 0x51)</option>
+                            <option value="k:0x00:0x50">方向左 (Arrow Left - 0x50)</option>
+                            <option value="k:0x00:0x4F">方向右 (Arrow Right - 0x4F)</option>
+                            <option value="k:0x00:0x4B">上一页 (PageUp - 0x4B)</option>
+                            <option value="k:0x00:0x4E">下一页 (PageDown - 0x4E)</option>
+                            <option value="k:0x00:0x4A">行首 (Home - 0x4A)</option>
+                            <option value="k:0x00:0x4D">行尾 (End - 0x4D)</option>
                         </optgroup>
                         <optgroup label="功能键 (F1 ~ F12)">
-                            <option value="k:0:0x3A">F1</option>
-                            <option value="k:0:0x3B">F2</option>
-                            <option value="k:0:0x3C">F3</option>
-                            <option value="k:0:0x3D">F4</option>
-                            <option value="k:0:0x3E">F5 (刷新)</option>
-                            <option value="k:0:0x3F">F6</option>
-                            <option value="k:0:0x40">F7</option>
-                            <option value="k:0:0x41">F8</option>
-                            <option value="k:0:0x42">F9</option>
-                            <option value="k:0:0x43">F10</option>
-                            <option value="k:0:0x44">F11 (全屏)</option>
-                            <option value="k:0:0x45">F12 (开发者工具)</option>
+                            <option value="k:0x00:0x3A">F1 (0x3A)</option>
+                            <option value="k:0x00:0x3B">F2 (0x3B)</option>
+                            <option value="k:0x00:0x3C">F3 (0x3C)</option>
+                            <option value="k:0x00:0x3D">F4 (0x3D)</option>
+                            <option value="k:0x00:0x3E">F5 (刷新 - 0x3E)</option>
+                            <option value="k:0x00:0x3F">F6 (0x3F)</option>
+                            <option value="k:0x00:0x40">F7 (0x40)</option>
+                            <option value="k:0x00:0x41">F8 (0x41)</option>
+                            <option value="k:0x00:0x42">F9 (0x42)</option>
+                            <option value="k:0x00:0x43">F10 (0x43)</option>
+                            <option value="k:0x00:0x44">F11 (全屏 - 0x44)</option>
+                            <option value="k:0x00:0x45">F12 (开发者工具 - 0x45)</option>
                         </optgroup>
                         <optgroup label="🖥️ 本地自定义脚本专用键 (F13 ~ F24 无冲突)">
-                            <option value="k:0:0x68">F13 (触发脚本 1)</option>
-                            <option value="k:0:0x69">F14 (触发脚本 2)</option>
-                            <option value="k:0:0x6A">F15 (触发脚本 3)</option>
-                            <option value="k:0:0x6B">F16 (触发脚本 4)</option>
-                            <option value="k:0:0x6C">F17 (触发脚本 5)</option>
-                            <option value="k:0:0x6D">F18 (触发脚本 6)</option>
-                            <option value="k:0:0x6E">F19 (触发脚本 7)</option>
-                            <option value="k:0:0x6F">F20 (触发脚本 8)</option>
-                            <option value="k:0:0x70">F21 (触发脚本 9)</option>
-                            <option value="k:0:0x71">F22 (触发脚本 10)</option>
-                            <option value="k:0:0x72">F23 (触发脚本 11)</option>
-                            <option value="k:0:0x73">F24 (触发脚本 12)</option>
+                            <option value="k:0x00:0x68">F13 (触发脚本 1 - 0x68)</option>
+                            <option value="k:0x00:0x69">F14 (触发脚本 2 - 0x69)</option>
+                            <option value="k:0x00:0x6A">F15 (触发脚本 3 - 0x6A)</option>
+                            <option value="k:0x00:0x6B">F16 (触发脚本 4 - 0x6B)</option>
+                            <option value="k:0x00:0x6C">F17 (触发脚本 5 - 0x6C)</option>
+                            <option value="k:0x00:0x6D">F18 (触发脚本 6 - 0x6D)</option>
+                            <option value="k:0x00:0x6E">F19 (触发脚本 7 - 0x6E)</option>
+                            <option value="k:0x00:0x6F">F20 (触发脚本 8 - 0x6F)</option>
+                            <option value="k:0x00:0x70">F21 (触发脚本 9 - 0x70)</option>
+                            <option value="k:0x00:0x71">F22 (触发脚本 10 - 0x71)</option>
+                            <option value="k:0x00:0x72">F23 (触发脚本 11 - 0x72)</option>
+                            <option value="k:0x00:0x73">F24 (触发脚本 12 - 0x73)</option>
                         </optgroup>
                         <optgroup label="常用快捷组合键">
                             <option value="k:0x04:0x36">Alt + , (豆包/AI语音助手)</option>
@@ -651,15 +651,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <option value="k:0x01:0x1D">Ctrl + Z (撤销)</option>
                         </optgroup>
                         <optgroup label="多媒体与系统控制 (仅普通按键)" id="quick-optgroup-media">
-                            <option value="c:0:545">🔊 音量增加 (Volume Up)</option>
-                            <option value="c:0:546">🔉 音量减少 (Volume Down)</option>
-                            <option value="c:0:547">🔇 静音 (Mute)</option>
-                            <option value="c:0:516">⏯️ 播放 / 暂停 (Play/Pause)</option>
-                            <option value="c:0:537">⏭️ 下一曲 (Next Track)</option>
-                            <option value="c:0:538">⏮️ 上一曲 (Previous Track)</option>
-                            <option value="c:0:530">🌙 系统休眠 (Sleep)</option>
-                            <option value="c:0:558">🔙 网页/应用返回 (AC Back)</option>
-                            <option value="c:0:557">⌂ 网页/系统主页 (AC Home)</option>
+                            <option value="c:0x00:0x00E9">🔊 音量增加 (Volume Up - 0x00E9)</option>
+                            <option value="c:0x00:0x00EA">🔉 音量减少 (Volume Down - 0x00EA)</option>
+                            <option value="c:0x00:0x00E2">🔇 静音 (Mute - 0x00E2)</option>
+                            <option value="c:0x00:0x00CD">⏯️ 播放 / 暂停 (Play/Pause - 0x00CD)</option>
+                            <option value="c:0x00:0x00B5">⏭️ 下一曲 (Next Track - 0x00B5)</option>
+                            <option value="c:0x00:0x00B6">⏮️ 上一曲 (Previous Track - 0x00B6)</option>
+                            <option value="c:0x00:0x00B7">⏹️ 停止播放 (Stop - 0x00B7)</option>
+                            <option value="c:0x00:0x0032">🌙 系统休眠 (Sleep - 0x0032)</option>
+                            <option value="c:0x00:0x0224">🔙 网页/应用返回 (AC Back - 0x0224)</option>
+                            <option value="c:0x00:0x0223">⌂ 网页/系统主页 (AC Home - 0x0223)</option>
+                            <option value="c:0x00:0x0225">🔜 网页前进 (AC Forward - 0x0225)</option>
+                            <option value="c:0x00:0x0192">🧮 打开计算器 (Calculator - 0x0192)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -667,12 +670,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <!-- Numerical Inputs -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
-                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">修饰键 (Mod: 1=Ctrl, 2=Shift, 4=Alt, 8=Win)</label>
-                        <input type="number" id="adv-mod" value="0" min="0" max="255" oninput="onAdvInputChanged()" style="width:100%; padding:8px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">修饰键 (Mod: 0x01=Ctrl, 0x02=Shift, 0x04=Alt, 0x08=Win)</label>
+                        <input type="text" id="adv-mod" value="0x00" oninput="onAdvInputChanged()" placeholder="0x00" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none; font-family:monospace;">
                     </div>
                     <div>
-                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">按键码 (HID Key 或 Consumer 代码)</label>
-                        <input type="number" id="adv-code" value="0" min="0" max="65535" oninput="onAdvInputChanged()" style="width:100%; padding:8px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">按键码 (HID 键码 如 0x2C 或 多媒体 0x0221)</label>
+                        <input type="text" id="adv-code" value="0x00" oninput="onAdvInputChanged()" placeholder="0x00" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none; font-family:monospace;">
                     </div>
                 </div>
             </div>
@@ -814,18 +817,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         let editingBinding = null;
 
         const FACTORY_KEYMAP = {
-            0x66: { source_vk: 0x66, has_click: true, click_type: 1, click_mod: 4, click_key: 43, click_cons: 0, has_long: true, long_ms: 600, long_type: 4, long_mod: 0, long_key: 0, long_cons: 50, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x66: { source_vk: 0x66, has_click: true, click_type: 1, click_mod: 4, click_key: 43, click_cons: 0, has_long: true, long_ms: 600, long_type: 4, long_mod: 0, long_key: 0, long_cons: 0x0032, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x04: { source_vk: 0x04, has_click: true, click_type: 7, click_mod: 64, click_key: 54, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x52: { source_vk: 0x52, has_click: true, click_type: 2, click_mod: 0, click_key: 82, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x51: { source_vk: 0x51, has_click: true, click_type: 2, click_mod: 0, click_key: 81, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x50: { source_vk: 0x50, has_click: true, click_type: 2, click_mod: 0, click_key: 80, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x4F: { source_vk: 0x4F, has_click: true, click_type: 2, click_mod: 0, click_key: 79, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x28: { source_vk: 0x28, has_click: true, click_type: 2, click_mod: 0, click_key: 40, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
-            0xF1: { source_vk: 0xF1, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 558, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0xF1: { source_vk: 0xF1, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 0x0224, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x24: { source_vk: 0x24, has_click: true, click_type: 1, click_mod: 8, click_key: 7, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x5D: { source_vk: 0x5D, has_click: true, click_type: 1, click_mod: 0, click_key: 44, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
-            0x80: { source_vk: 0x80, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 545, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
-            0x81: { source_vk: 0x81, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 546, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x80: { source_vk: 0x80, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 0x00E9, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x81: { source_vk: 0x81, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 0x00EA, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0xC0: { source_vk: 0xC0, has_click: true, click_type: 1, click_mod: 0, click_key: 65, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 }
         };
 
@@ -839,11 +842,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             if (cons > 0) {
                 const consMap = {
-                    545: '音量+', 546: '音量-', 547: '静音',
-                    516: '播放/暂停', 537: '下一曲', 538: '上一曲',
-                    530: '休眠', 558: '返回', 557: '主页'
+                    0x00E9: '音量+', 233: '音量+', 545: '音量+',
+                    0x00EA: '音量-', 234: '音量-', 546: '音量-',
+                    0x00E2: '静音',  226: '静音', 547: '静音',
+                    0x00CD: '播放/暂停', 205: '播放/暂停', 516: '播放/暂停',
+                    0x00B5: '下一曲', 181: '下一曲', 537: '下一曲',
+                    0x00B6: '上一曲', 182: '上一曲', 538: '上一曲',
+                    0x00B7: '停止',  183: '停止',
+                    0x0032: '休眠',  50: '休眠', 530: '休眠',
+                    0x0030: '电源',  48: '电源',
+                    0x0224: '返回',  548: '返回', 558: '返回',
+                    0x0223: '主页',  547: '主页', 557: '主页',
+                    0x0225: '前进',  549: '前进',
+                    0x0192: '计算器', 402: '计算器'
                 };
-                parts.push(consMap[cons] || `多媒体 0x${cons.toString(16)}`);
+                parts.push(consMap[cons] || `多媒体 0x${cons.toString(16).toUpperCase()}`);
             } else if (key > 0) {
                 let name = `Key(0x${key.toString(16).toUpperCase()})`;
                 for (let k in DOM_TO_HID) {
@@ -886,10 +899,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             } catch(e){}
         }
 
+        function parseHexOrDec(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            val = String(val).trim();
+            if (val.startsWith('0x') || val.startsWith('0X')) {
+                return parseInt(val, 16) || 0;
+            }
+            if (/^[0-9a-fA-F]+$/.test(val) && /[a-fA-F]/.test(val)) {
+                return parseInt(val, 16) || 0;
+            }
+            return parseInt(val, 10) || 0;
+        }
+
         function saveActiveTabToBinding() {
             if (!editingBinding) return;
-            const mod = parseInt(document.getElementById('adv-mod').value) || 0;
-            const code = parseInt(document.getElementById('adv-code').value) || 0;
+            const mod = parseHexOrDec(document.getElementById('adv-mod').value);
+            const code = parseHexOrDec(document.getElementById('adv-code').value);
             const mode = currentSelectedMode;
 
             // Always sync Long Press enable switch & timing slider
@@ -1053,8 +1079,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const card = document.getElementById(`mode-card-${type}`);
             if (card) card.classList.add('selected');
 
-            document.getElementById('adv-mod').value = mod || 0;
-            document.getElementById('adv-code').value = key || cons || 0;
+            document.getElementById('adv-mod').value = '0x' + (mod || 0).toString(16).toUpperCase().padStart(2, '0');
+            const codeVal = (key || cons || 0);
+            document.getElementById('adv-code').value = '0x' + codeVal.toString(16).toUpperCase().padStart(codeVal > 255 ? 4 : 2, '0');
 
             const display = document.getElementById('recorded-badge-display');
             if (type === 0 || (!key && !cons && !mod)) {
@@ -1070,18 +1097,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             if (cons > 0) {
                 const consMap = {
-                    545: '🔊 音量 +',
-                    546: '🔉 音量 -',
-                    547: '🔇 静音',
-                    516: '⏯️ 播放/暂停',
-                    537: '⏭️ 下一曲',
-                    538: '⏮️ 上一曲',
-                    539: '⏹️ 停止',
-                    530: '🌙 系统休眠',
-                    558: '🔙 网页返回',
-                    557: '⌂ 网页主页'
+                    0x00E9: '🔊 音量 +', 233: '🔊 音量 +', 545: '🔊 音量 +',
+                    0x00EA: '🔉 音量 -', 234: '🔉 音量 -', 546: '🔉 音量 -',
+                    0x00E2: '🔇 静音',   226: '🔇 静音',   547: '🔇 静音',
+                    0x00CD: '⏯️ 播放/暂停', 205: '⏯️ 播放/暂停', 516: '⏯️ 播放/暂停',
+                    0x00B5: '⏭️ 下一曲', 181: '⏭️ 下一曲', 537: '⏭️ 下一曲',
+                    0x00B6: '⏮️ 上一曲', 182: '⏮️ 上一曲', 538: '⏮️ 上一曲',
+                    0x00B7: '⏹️ 停止',   183: '⏹️ 停止',
+                    0x0032: '🌙 系统休眠', 50: '🌙 系统休眠', 530: '🌙 系统休眠',
+                    0x0030: '⏻ 电源开关', 48: '⏻ 电源开关',
+                    0x0224: '🔙 网页返回', 548: '🔙 网页返回', 558: '🔙 网页返回',
+                    0x0223: '⌂ 网页主页', 547: '⌂ 网页主页', 557: '⌂ 网页主页',
+                    0x0225: '🔜 网页前进', 549: '🔜 网页前进',
+                    0x0192: '🧮 计算器',  402: '🧮 计算器'
                 };
-                chips.push(consMap[cons] || `多媒体 0x${cons.toString(16)}`);
+                chips.push(consMap[cons] || `多媒体 0x${cons.toString(16).toUpperCase()}`);
             } else if (key > 0) {
                 let keyName = `Key(0x${key.toString(16).toUpperCase()})`;
                 for (let k in DOM_TO_HID) {
@@ -1198,8 +1228,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (!val) return;
             const parts = val.split(':');
             const prefix = parts[0];
-            const mod = parseInt(parts[1], 16) || 0;
-            const code = parseInt(parts[2], parts[2].startsWith('0x') ? 16 : 10) || 0;
+            const mod = parseHexOrDec(parts[1]);
+            const code = parseHexOrDec(parts[2]);
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (prefix === 'c') {
@@ -1220,8 +1250,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         }
 
         function onAdvInputChanged() {
-            const mod = parseInt(document.getElementById('adv-mod').value) || 0;
-            const code = parseInt(document.getElementById('adv-code').value) || 0;
+            const mod = parseHexOrDec(document.getElementById('adv-mod').value);
+            const code = parseHexOrDec(document.getElementById('adv-code').value);
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (isVoice) {

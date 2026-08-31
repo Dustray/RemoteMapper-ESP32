@@ -59,6 +59,22 @@ String key_config_to_json(const key_mapper_engine_t *engine) {
     return out;
 }
 
+static uint32_t parse_u32_or_hex(JsonVariant v, uint32_t default_val = 0) {
+    if (v.isNull()) return default_val;
+    if (v.is<int>() || v.is<unsigned int>() || v.is<long>() || v.is<unsigned long>()) {
+        return v.as<uint32_t>();
+    }
+    if (v.is<const char*>() || v.is<String>()) {
+        String s = v.as<String>();
+        s.trim();
+        if (s.startsWith("0x") || s.startsWith("0X")) {
+            return (uint32_t)strtoul(s.c_str(), NULL, 16);
+        }
+        return (uint32_t)strtoul(s.c_str(), NULL, 10);
+    }
+    return default_val;
+}
+
 bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
     if (!engine || json_str.length() == 0) return false;
 
@@ -79,13 +95,13 @@ bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
         key_binding_t b;
         memset(&b, 0, sizeof(b));
 
-        b.source_vk = obj["source_vk"] | 0;
+        b.source_vk = parse_u32_or_hex(obj["source_vk"], 0);
 
         b.has_click = obj["has_click"] | false;
-        b.click_action.type = (key_action_type_t)(obj["click_type"] | 0);
-        b.click_action.modifier = obj["click_mod"] | 0;
-        b.click_action.key_code = obj["click_key"] | 0;
-        b.click_action.consumer_code = obj["click_cons"] | 0;
+        b.click_action.type = (key_action_type_t)parse_u32_or_hex(obj["click_type"], 0);
+        b.click_action.modifier = (uint8_t)parse_u32_or_hex(obj["click_mod"], 0);
+        b.click_action.key_code = (uint8_t)parse_u32_or_hex(obj["click_key"], 0);
+        b.click_action.consumer_code = (uint16_t)parse_u32_or_hex(obj["click_cons"], 0);
 
         // Normalize MI_KEY_VOICE_ALT (0x3E) to MI_KEY_VOICE (0x04)
         if (b.source_vk == MI_KEY_VOICE_ALT) {
@@ -98,18 +114,18 @@ bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
         }
 
         b.has_long = obj["has_long"] | false;
-        b.long_ms = obj["long_ms"] | 600;
-        b.long_action.type = (key_action_type_t)(obj["long_type"] | 1);
-        b.long_action.modifier = obj["long_mod"] | 0;
-        b.long_action.key_code = obj["long_key"] | 0;
-        b.long_action.consumer_code = obj["long_cons"] | 0;
+        b.long_ms = parse_u32_or_hex(obj["long_ms"], 600);
+        b.long_action.type = (key_action_type_t)parse_u32_or_hex(obj["long_type"], 1);
+        b.long_action.modifier = (uint8_t)parse_u32_or_hex(obj["long_mod"], 0);
+        b.long_action.key_code = (uint8_t)parse_u32_or_hex(obj["long_key"], 0);
+        b.long_action.consumer_code = (uint16_t)parse_u32_or_hex(obj["long_cons"], 0);
 
         b.has_double = obj["has_double"] | false;
-        b.double_ms = obj["double_ms"] | 250;
-        b.double_action.type = (key_action_type_t)(obj["double_type"] | 1);
-        b.double_action.modifier = obj["double_mod"] | 0;
-        b.double_action.key_code = obj["double_key"] | 0;
-        b.double_action.consumer_code = obj["double_cons"] | 0;
+        b.double_ms = parse_u32_or_hex(obj["double_ms"], 250);
+        b.double_action.type = (key_action_type_t)parse_u32_or_hex(obj["double_type"], 1);
+        b.double_action.modifier = (uint8_t)parse_u32_or_hex(obj["double_mod"], 0);
+        b.double_action.key_code = (uint8_t)parse_u32_or_hex(obj["double_key"], 0);
+        b.double_action.consumer_code = (uint16_t)parse_u32_or_hex(obj["double_cons"], 0);
 
         engine->bindings[engine->binding_count++] = b;
     }
