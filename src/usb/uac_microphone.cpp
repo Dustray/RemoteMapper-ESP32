@@ -42,7 +42,9 @@ static void uac_watchdog_task(void* arg) {
     uint32_t stuck_ticks = 0;
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(10));
-        if (s_uac_streaming) {
+        
+        // ONLY monitor if USB is fully mounted, active, NOT suspended by host, and streaming
+        if (tud_mounted() && !tud_suspended() && s_uac_streaming) {
             if (s_xfer_cb_count == last_count) {
                 stuck_ticks += 10;
                 if (stuck_ticks >= 50) {
@@ -67,6 +69,7 @@ static void uac_watchdog_task(void* arg) {
             }
         } else {
             stuck_ticks = 0;
+            last_count = s_xfer_cb_count;
         }
     }
 }
@@ -123,6 +126,8 @@ static void uac_driver_reset(uint8_t rhport) {
     (void)rhport;
     s_uac_streaming = false;
     s_uac_alt = 0;
+    s_xfer_cb_count = 0;
+    app_log("UAC", "USB Bus Reset detected -> UAC state reset");
 }
 
 static uint16_t uac_driver_open(uint8_t rhport, tusb_desc_interface_t const *desc_intf, uint16_t max_len) {
@@ -144,39 +149,54 @@ static bool uac_driver_control_xfer_cb(uint8_t rhport, uint8_t stage,
                                          tusb_control_request_t const *req) {
     if (stage != CONTROL_STAGE_SETUP) return true;
 
+    // 1. Standard USB Requests
     if (req->bmRequestType_bit.type == TUSB_REQ_TYPE_STANDARD) {
-            if (req->bRequest == TUSB_REQ_SET_INTERFACE) {
-                uint8_t alt = (uint8_t)req->wValue;
-                s_uac_alt       = alt;
-                s_uac_streaming = (alt == 1);
-                
-                // Force release endpoint to clear stuck busy flags from aborted transfers
+        if (req->bRequest == TUSB_REQ_SET_INTERFACE) {
+            uint8_t itf = (uint8_t)req->wIndex;
+            if (itf != s_uac_itf_as && itf != s_uac_itf_ac) {
+                return false; // Crucial: Let other class drivers (HID, CDC) handle their own interfaces!
+            }
+            uint8_t alt = (uint8_t)req->wValue;
+            s_uac_alt       = alt;
+            s_uac_streaming = (alt == 1);
+            
+            // Force release endpoint to clear stuck busy flags from aborted transfers
+            usbd_edpt_close(rhport, (uint8_t)(s_uac_ep_in | 0x80));
+
+            if (alt == 1) {
+                tusb_desc_endpoint_t ep;
+                ep.bLength          = sizeof(tusb_desc_endpoint_t);
+                ep.bDescriptorType  = TUSB_DESC_ENDPOINT;
+                ep.bEndpointAddress = (uint8_t)(s_uac_ep_in | 0x80);
+                ep.bmAttributes.xfer = TUSB_XFER_ISOCHRONOUS;
+                ep.bmAttributes.sync = 1;
+                ep.wMaxPacketSize   = 64;
+                ep.bInterval        = 2;
+                usbd_edpt_open(rhport, &ep);
+
+                // Kick off the continuous Isochronous IN chain
+                memset(s_tx_buf, 0, 64);
+                usbd_edpt_xfer(rhport, ep.bEndpointAddress, (uint8_t*)s_tx_buf, 64);
+            } else {
                 usbd_edpt_close(rhport, (uint8_t)(s_uac_ep_in | 0x80));
-
-                if (alt == 1) {
-                    tusb_desc_endpoint_t ep;
-                    ep.bLength          = sizeof(tusb_desc_endpoint_t);
-                    ep.bDescriptorType  = TUSB_DESC_ENDPOINT;
-                    ep.bEndpointAddress = (uint8_t)(s_uac_ep_in | 0x80);
-                    ep.bmAttributes.xfer = TUSB_XFER_ISOCHRONOUS;
-                    ep.bmAttributes.sync = 1;
-                    ep.wMaxPacketSize   = 64;
-                    ep.bInterval        = 2;
-                    usbd_edpt_open(rhport, &ep);
-
-                    // Kick off the continuous Isochronous IN chain
-                    memset(s_tx_buf, 0, 64);
-                    usbd_edpt_xfer(rhport, ep.bEndpointAddress, (uint8_t*)s_tx_buf, 64);
-                } else {
-                    usbd_edpt_close(rhport, (uint8_t)(s_uac_ep_in | 0x80));
-                }
-                return tud_control_status(rhport, req);
+            }
+            return tud_control_status(rhport, req);
         } else if (req->bRequest == TUSB_REQ_GET_INTERFACE) {
+            uint8_t itf = (uint8_t)req->wIndex;
+            if (itf != s_uac_itf_as && itf != s_uac_itf_ac) {
+                return false; // Crucial: Let other class drivers handle their own interfaces!
+            }
             return tud_control_xfer(rhport, req, &s_uac_alt, 1);
         }
+        return false;
     }
 
+    // 2. Class-Specific USB Requests
     if (req->bmRequestType_bit.type == TUSB_REQ_TYPE_CLASS) {
+        uint8_t target_itf = (uint8_t)req->wIndex;
+        if (target_itf != s_uac_itf_ac && target_itf != s_uac_itf_as && target_itf != 0x02) {
+            return false; // Crucial: Let HID / CDC class drivers handle their own class requests!
+        }
         uint8_t r  = req->bRequest;
         uint8_t cs = (uint8_t)(req->wValue >> 8);
         if (r == 0x81) {   // GET_CUR
@@ -188,8 +208,9 @@ static bool uac_driver_control_xfer_cb(uint8_t rhport, uint8_t stage,
         if (r == 0x82) return tud_control_xfer(rhport, req, &vol_min, 2);
         if (r == 0x83) return tud_control_xfer(rhport, req, &vol_max, 2);
         if (r == 0x84) return tud_control_xfer(rhport, req, &vol_res, 2);
+        return false;
     }
-    return tud_control_status(rhport, req);
+    return false;
 }
 
 static bool uac_driver_xfer_cb(uint8_t rhport, uint8_t ep_addr,
