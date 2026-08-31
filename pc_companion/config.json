@@ -1,28 +1,28 @@
 {
     "F13": {
-        "name": "打开计算器",
-        "command": "calc.exe",
+        "name": "打开抖音",
+        "command": "start https://www.douyin.com/",
         "enabled": true
     },
     "F14": {
-        "name": "打开浏览器网址",
-        "command": "explorer https://gemini.google.com",
+        "name": "切换ps5",
+        "command": "C:\\Users\\cuicuiV5\\Desktop\\切到ps5.bat",
         "enabled": true
     },
     "F15": {
-        "name": "打开记事本",
-        "command": "notepad.exe",
+        "name": "打开Gemini",
+        "command": "start https://gemini.google.com/app",
         "enabled": true
     },
     "F16": {
         "name": "运行自定义 Python 任务",
         "command": "python scripts/demo_task.py",
-        "enabled": true
+        "enabled": false
     },
     "F17": {
         "name": "运行自定义批处理",
         "command": "scripts/demo_action.bat",
-        "enabled": true
+        "enabled": false
     },
     "F19": {
         "name": "自定义槽位 7",
