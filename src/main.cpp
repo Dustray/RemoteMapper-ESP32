@@ -12,6 +12,9 @@
 #include "cli/cli_manager.h"
 #include "led_indicator.h"
 
+#include <nvs_flash.h>
+#include <nvs.h>
+
 key_mapper_engine_t g_key_engine;
 
 // Task running on Core 0: BLE Central & Audio Decoding
@@ -27,6 +30,13 @@ static void ble_task_core0(void* param) {
 }
 
 void setup() {
+    // 0. Initialize Flash NVS with auto-recovery for corrupted partitions
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase();
+        nvs_flash_init();
+    }
+
     // 1. Initialize Log System first
     app_log_init();
     

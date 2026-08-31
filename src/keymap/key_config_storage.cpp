@@ -3,12 +3,10 @@
 #include <Preferences.h>
 #include <ArduinoJson.h>
 
-static Preferences s_key_prefs;
-
 void key_config_storage_init(key_mapper_engine_t *engine) {
-    s_key_prefs.begin("keymap_conf", false);
     if (!key_config_storage_load(engine)) {
-        app_log("KEYMAP", "No custom keymap found, loaded factory defaults (%u bindings)", (unsigned int)engine->binding_count);
+        key_engine_load_defaults(engine);
+        app_log("KEYMAP", "Loaded safe factory defaults (%u bindings)", (unsigned int)engine->binding_count);
     } else {
         app_log("KEYMAP", "Loaded custom keymap from NVS (%u bindings)", (unsigned int)engine->binding_count);
     }
@@ -27,27 +25,33 @@ String key_config_to_json(const key_mapper_engine_t *engine) {
         obj["source_vk"] = b->source_vk;
         
         // Click action
-        obj["has_click"] = b->has_click;
-        obj["click_type"] = (int)b->click_action.type;
-        obj["click_mod"] = b->click_action.modifier;
-        obj["click_key"] = b->click_action.key_code;
-        obj["click_cons"] = b->click_action.consumer_code;
+        if (b->has_click) {
+            obj["has_click"] = true;
+            obj["click_type"] = (int)b->click_action.type;
+            if (b->click_action.modifier != 0) obj["click_mod"] = b->click_action.modifier;
+            if (b->click_action.key_code != 0) obj["click_key"] = b->click_action.key_code;
+            if (b->click_action.consumer_code != 0) obj["click_cons"] = b->click_action.consumer_code;
+        }
 
-        // Long action
-        obj["has_long"] = b->has_long;
-        obj["long_ms"] = b->long_ms;
-        obj["long_type"] = (int)b->long_action.type;
-        obj["long_mod"] = b->long_action.modifier;
-        obj["long_key"] = b->long_action.key_code;
-        obj["long_cons"] = b->long_action.consumer_code;
+        // Long action - omit unused fields if false to keep NVS size tiny
+        if (b->has_long) {
+            obj["has_long"] = true;
+            obj["long_ms"] = b->long_ms;
+            obj["long_type"] = (int)b->long_action.type;
+            if (b->long_action.modifier != 0) obj["long_mod"] = b->long_action.modifier;
+            if (b->long_action.key_code != 0) obj["long_key"] = b->long_action.key_code;
+            if (b->long_action.consumer_code != 0) obj["long_cons"] = b->long_action.consumer_code;
+        }
 
-        // Double action
-        obj["has_double"] = b->has_double;
-        obj["double_ms"] = b->double_ms;
-        obj["double_type"] = (int)b->double_action.type;
-        obj["double_mod"] = b->double_action.modifier;
-        obj["double_key"] = b->double_action.key_code;
-        obj["double_cons"] = b->double_action.consumer_code;
+        // Double action - omit unused fields if false to keep NVS size tiny
+        if (b->has_double) {
+            obj["has_double"] = true;
+            obj["double_ms"] = b->double_ms;
+            obj["double_type"] = (int)b->double_action.type;
+            if (b->double_action.modifier != 0) obj["double_mod"] = b->double_action.modifier;
+            if (b->double_action.key_code != 0) obj["double_key"] = b->double_action.key_code;
+            if (b->double_action.consumer_code != 0) obj["double_cons"] = b->double_action.consumer_code;
+        }
     }
 
     String out;
@@ -94,15 +98,15 @@ bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
         }
 
         b.has_long = obj["has_long"] | false;
-        b.long_ms = obj["long_ms"] | 500;
-        b.long_action.type = (key_action_type_t)(obj["long_type"] | 0);
+        b.long_ms = obj["long_ms"] | 600;
+        b.long_action.type = (key_action_type_t)(obj["long_type"] | 1);
         b.long_action.modifier = obj["long_mod"] | 0;
         b.long_action.key_code = obj["long_key"] | 0;
         b.long_action.consumer_code = obj["long_cons"] | 0;
 
         b.has_double = obj["has_double"] | false;
         b.double_ms = obj["double_ms"] | 250;
-        b.double_action.type = (key_action_type_t)(obj["double_type"] | 0);
+        b.double_action.type = (key_action_type_t)(obj["double_type"] | 1);
         b.double_action.modifier = obj["double_mod"] | 0;
         b.double_action.key_code = obj["double_key"] | 0;
         b.double_action.consumer_code = obj["double_cons"] | 0;
@@ -117,21 +121,55 @@ bool key_config_from_json(key_mapper_engine_t *engine, const String &json_str) {
 bool key_config_storage_save(key_mapper_engine_t *engine) {
     if (!engine) return false;
     String json = key_config_to_json(engine);
-    s_key_prefs.putString("cfg_json", json);
-    app_log("KEYMAP", "Saved keymap to NVS (%u bytes)", (unsigned int)json.length());
+
+    Preferences prefs;
+    if (!prefs.begin("keymap_conf", false)) {
+        app_log("KEYMAP", "Failed to open keymap_conf NVS namespace for writing!");
+        return false;
+    }
+    size_t written = prefs.putString("cfg_json", json);
+    prefs.end();
+
+    if (written == 0) {
+        app_log("KEYMAP", "ERROR: putString to NVS failed (written 0 bytes)!");
+        return false;
+    }
+    app_log("KEYMAP", "Saved keymap to NVS successfully (%u bytes written)", (unsigned int)written);
     return true;
 }
 
 bool key_config_storage_load(key_mapper_engine_t *engine) {
     if (!engine) return false;
-    String json = s_key_prefs.getString("cfg_json", "");
-    if (json.length() == 0) return false;
-    return key_config_from_json(engine, json);
+
+    Preferences prefs;
+    if (!prefs.begin("keymap_conf", true)) {
+        key_engine_load_defaults(engine);
+        return false;
+    }
+    String json = prefs.getString("cfg_json", "");
+    prefs.end();
+
+    if (json.length() == 0) {
+        key_engine_load_defaults(engine);
+        return false;
+    }
+    bool ok = key_config_from_json(engine, json);
+    if (!ok || engine->binding_count == 0) {
+        app_log("KEYMAP", "NVS keymap is invalid or corrupted -> auto-fallback to safe defaults!");
+        key_engine_load_defaults(engine);
+        return false;
+    }
+    return true;
 }
 
 void key_config_storage_reset_defaults(key_mapper_engine_t *engine) {
     if (!engine) return;
-    s_key_prefs.remove("cfg_json");
+
+    Preferences prefs;
+    if (prefs.begin("keymap_conf", false)) {
+        prefs.remove("cfg_json");
+        prefs.end();
+    }
     key_engine_load_defaults(engine);
     app_log("KEYMAP", "Reset keymap to factory defaults (%u bindings)", (unsigned int)engine->binding_count);
 }

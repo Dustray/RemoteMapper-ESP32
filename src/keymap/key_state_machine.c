@@ -55,6 +55,19 @@ static void emit_action(key_mapper_engine_t *engine, const key_action_t *action,
     }
 }
 
+static void emit_action_as_tap_if_hold(key_mapper_engine_t *engine, const key_action_t *action, uint8_t source_vk) {
+    if (!action || action->type == ACTION_NONE) return;
+    if (action->type == ACTION_KEYBOARD_HOLD) {
+        key_action_t tap = { ACTION_KEYBOARD_TAP, action->modifier, action->key_code, 0 };
+        emit_action(engine, &tap, source_vk, false);
+    } else if (action->type == ACTION_CONSUMER_HOLD) {
+        key_action_t tap = { ACTION_CONSUMER_TAP, 0, 0, action->consumer_code };
+        emit_action(engine, &tap, source_vk, false);
+    } else {
+        emit_action(engine, action, source_vk, false);
+    }
+}
+
 void key_engine_load_defaults(key_mapper_engine_t *engine) {
     if (!engine) return;
     engine->binding_count = 0;
@@ -275,8 +288,11 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
                 s->next_repeat_timestamp = now_ms + b->repeat_delay_ms;
             }
 
-            if (b->click_action.type == ACTION_KEYBOARD_HOLD || b->click_action.type == ACTION_CONSUMER_HOLD || b->click_action.type == ACTION_VOICE_HOLD) {
-                emit_action(engine, &b->click_action, raw_key_code, true);
+            // If key has NO long press and NO double click configured, trigger pure instant 0ms pass-through
+            if (!b->has_long && !b->has_double) {
+                if (b->click_action.type == ACTION_KEYBOARD_HOLD || b->click_action.type == ACTION_CONSUMER_HOLD || b->click_action.type == ACTION_VOICE_HOLD) {
+                    emit_action(engine, &b->click_action, raw_key_code, true);
+                }
             }
         }
     } else {
@@ -286,26 +302,45 @@ void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool
             uint32_t duration = now_ms - s->press_timestamp;
             engine->last_telemetry.duration_ms = duration;
 
-            if (b->click_action.type == ACTION_KEYBOARD_HOLD) {
-                key_action_t rel = { ACTION_KEYBOARD_RELEASE, 0, 0, 0 };
-                emit_action(engine, &rel, raw_key_code, false);
-            } else if (b->click_action.type == ACTION_CONSUMER_HOLD) {
-                key_action_t rel = { ACTION_CONSUMER_RELEASE, 0, 0, 0 };
-                emit_action(engine, &rel, raw_key_code, false);
-            } else if (b->click_action.type == ACTION_VOICE_HOLD) {
-                key_action_t rel = { ACTION_VOICE_RELEASE, 0, 0, 0 };
-                emit_action(engine, &rel, raw_key_code, false);
-            } else if (b->has_click && !s->long_fired) {
-                if (!b->has_double) {
+            if (!b->has_long && !b->has_double) {
+                // Pure pass-through release
+                if (b->click_action.type == ACTION_KEYBOARD_HOLD) {
+                    key_action_t rel = { ACTION_KEYBOARD_RELEASE, 0, 0, 0 };
+                    emit_action(engine, &rel, raw_key_code, false);
+                } else if (b->click_action.type == ACTION_CONSUMER_HOLD) {
+                    key_action_t rel = { ACTION_CONSUMER_RELEASE, 0, 0, 0 };
+                    emit_action(engine, &rel, raw_key_code, false);
+                } else if (b->click_action.type == ACTION_VOICE_HOLD) {
+                    key_action_t rel = { ACTION_VOICE_RELEASE, 0, 0, 0 };
+                    emit_action(engine, &rel, raw_key_code, false);
+                } else if (b->has_click) {
                     emit_action(engine, &b->click_action, raw_key_code, false);
-                } else {
-                    s->press_count++;
-                    if (s->press_count == 1) {
-                        s->waiting_double = true;
-                    } else if (s->press_count >= 2) {
-                        s->waiting_double = false;
-                        s->press_count = 0;
-                        emit_action(engine, &b->double_action, raw_key_code, false);
+                }
+            } else {
+                // Key has Long Press or Double Click configured
+                if (s->long_fired) {
+                    // Long press was fired during hold -> release long action if it was a hold
+                    if (b->long_action.type == ACTION_KEYBOARD_HOLD) {
+                        key_action_t rel = { ACTION_KEYBOARD_RELEASE, 0, 0, 0 };
+                        emit_action(engine, &rel, raw_key_code, false);
+                    } else if (b->long_action.type == ACTION_CONSUMER_HOLD) {
+                        key_action_t rel = { ACTION_CONSUMER_RELEASE, 0, 0, 0 };
+                        emit_action(engine, &rel, raw_key_code, false);
+                    }
+                    // Click action is suppressed
+                } else if (b->has_click) {
+                    // Short click (< long_ms)
+                    if (!b->has_double) {
+                        emit_action_as_tap_if_hold(engine, &b->click_action, raw_key_code);
+                    } else {
+                        s->press_count++;
+                        if (s->press_count == 1) {
+                            s->waiting_double = true;
+                        } else if (s->press_count >= 2) {
+                            s->waiting_double = false;
+                            s->press_count = 0;
+                            emit_action_as_tap_if_hold(engine, &b->double_action, raw_key_code);
+                        }
                     }
                 }
             }
@@ -337,7 +372,7 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms) {
             if (s->waiting_double && (now_ms - s->release_timestamp >= b->double_ms)) {
                 s->waiting_double = false;
                 s->press_count = 0;
-                emit_action(engine, &b->click_action, b->source_vk, false);
+                emit_action_as_tap_if_hold(engine, &b->click_action, b->source_vk);
             }
         }
     }

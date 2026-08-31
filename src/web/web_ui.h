@@ -166,6 +166,73 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         .key-badge-display { font-size: 24px; font-weight: 800; color: #fff; margin-top: 8px; min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
         .kbd-chip { background: #0f172a; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 4px 12px; border-radius: 6px; font-size: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
 
+        .mode-card {
+            cursor: pointer;
+            background: #0f172a;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 6px;
+            text-align: center;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+        .mode-card:hover {
+            border-color: #3b82f6;
+            background: #1e293b;
+            transform: translateY(-1px);
+        }
+        .mode-card.selected {
+            border-color: var(--accent-cyan) !important;
+            background: rgba(6, 182, 212, 0.18) !important;
+            box-shadow: 0 0 14px rgba(6, 182, 212, 0.3) !important;
+        }
+        .mode-card.selected .mode-title {
+            color: var(--accent-cyan) !important;
+        }
+
+        .trigger-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+        .trigger-tab-btn:hover {
+            color: #fff;
+        }
+        .trigger-tab-btn.active {
+            background: var(--bg-card);
+            color: var(--accent-cyan);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .switch-toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch-toggle input { opacity: 0; width: 0; height: 0; }
+        .switch-toggle .slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background-color: #27272a; transition: .2s; border-radius: 24px; border: 1px solid #3f3f46;
+        }
+        .switch-toggle .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: #d4d4d8; transition: .2s; border-radius: 50%;
+        }
+        .switch-toggle input:checked + .slider {
+            background-color: var(--accent-cyan); border-color: var(--accent-cyan);
+        }
+        .switch-toggle input:checked + .slider:before {
+            transform: translateX(20px); background-color: #000;
+        }
+
         .btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.9; }
         .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
@@ -213,6 +280,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <button class="tab-btn active" onclick="switchTab('tab-tester')">🎮 遥控器与改键测试</button>
             <button class="tab-btn" onclick="switchTab('tab-ble')">📡 蓝牙配对管理</button>
             <button class="tab-btn" onclick="switchTab('tab-logs')">📜 运行日志</button>
+            <button class="tab-btn" onclick="switchTab('tab-nvs')">💾 NVS 配置管理</button>
             <button class="tab-btn" onclick="switchTab('tab-wifi')">📶 Wi-Fi 与系统配置</button>
         </div>
 
@@ -327,7 +395,56 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             </div>
         </div>
 
-        <!-- TAB 4: Wi-Fi & System -->
+        <!-- TAB 4: NVS Config Manager -->
+        <div id="tab-nvs" class="tab-content">
+            <div class="card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span style="font-size: 16px;">💾 ESP32 Flash NVS 纯文本配置管理器</span>
+                        <div style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">
+                            以 JSON 纯文本形式统一管理 ESP32 Flash NVS 中存储的所有持久化参数（Wi-Fi、蓝牙绑定、改键规则等）。支持实时编辑、保存、导出备份与导入恢复。
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="loadNvsConfig()">🔄 重新读取</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="formatNvsJson()">🧹 格式化 JSON</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="copyNvsJson()">📋 复制文本</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="exportNvsJson()">📥 导出备份</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="document.getElementById('nvs-file-input').click()">📤 导入文件</button>
+                        <input type="file" id="nvs-file-input" accept=".json" style="display:none;" onchange="importNvsJson(event)">
+                        <button class="btn" style="font-size: 12px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));" onclick="saveNvsConfig()">💾 保存写入 NVS</button>
+                    </div>
+                </div>
+
+                <div style="position: relative; margin-bottom: 16px;">
+                    <div id="nvs-json-status" style="position: absolute; top: 12px; right: 16px; font-size: 12px; z-index: 2; padding: 3px 8px; border-radius: 6px; background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4);">
+                        🟢 JSON 格式有效
+                    </div>
+                    <textarea id="nvs-editor" spellcheck="false" placeholder="正在读取 ESP32 NVS 配置..." 
+                        style="width: 100%; height: 460px; background: #070a10; color: #38bdf8; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.6; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; resize: vertical; outline: none; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);"
+                        oninput="validateNvsJson()" onkeydown="handleNvsEditorKey(event)"></textarea>
+                </div>
+
+                <div class="grid-2">
+                    <div style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                        <b style="color: var(--text-main); display:block; margin-bottom:6px;">💡 NVS 命名空间常用说明</b>
+                        • <code style="color:var(--accent-cyan)">wifi_conf</code>: 包含 <code>sta_ssid</code>, <code>sta_pass</code> (Wi-Fi配置) 和 <code>ap_ssid</code>, <code>ap_pass</code> (热点配置)<br>
+                        • <code style="color:var(--accent-cyan)">ble_conf</code>: 包含 <code>bound_mac</code>, <code>bound_name</code>, <code>bound_type</code> (绑定的蓝牙遥控器)<br>
+                        • <code style="color:var(--accent-cyan)">keymap_conf</code>: 包含 <code>cfg_json</code> (13个按键的完整映射规则字典)<br>
+                        • 支持任意自由增删或自定义新的命名空间与键值对，保存后将持久化保存在 Flash 中。
+                    </div>
+                    <div style="background: #090d16; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 14px 18px; font-size: 13px; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <b style="color: #f87171; display:block; margin-bottom:6px;">⚠️ 危险区域：清空 NVS / 恢复出厂设置</b>
+                            <span style="color: var(--text-muted);">擦除整个 ESP32 Flash NVS 分区中的所有存储数据（清除所有 Wi-Fi、蓝牙配对和改键设置），并自动重启系统。</span>
+                        </div>
+                        <button class="btn btn-danger" style="margin-top: 12px; align-self: flex-start;" onclick="resetNvsFactory()">🧨 清空全部 NVS 并恢复出厂</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: Wi-Fi & System -->
         <div id="tab-wifi" class="tab-content">
             <div class="grid-2">
                 <div class="card">
@@ -363,14 +480,89 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <!-- Ultra-Simple Interactive Remap Modal -->
     <div class="modal-overlay" id="remap-modal" onclick="if(event.target === this) closeRemapModal()">
         <div class="modal">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                 <h3 style="font-size: 18px;" id="modal-title">设置按键映射</h3>
                 <span id="modal-vk-badge" style="font-size: 12px; color: var(--accent-cyan); font-family: monospace;">0x00</span>
             </div>
 
-            <!-- Voice Key Exclusive Banner -->
-            <div id="voice-key-banner" style="display:none; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: #93c5fd; line-height: 1.5;">
-                🎙️ <b>语音对讲专属模式</b>：按住遥控器语音键时开始录音并注入快捷键，松开时停止录音并释放快捷键。
+            <!-- Trigger Sub-Tabs (Click / Long Press / Double Click) -->
+            <div id="trigger-tab-bar" style="display: flex; gap: 6px; margin-bottom: 14px; background: #070a10; padding: 4px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <button type="button" class="trigger-tab-btn active" id="tab-btn-click" onclick="switchTriggerTab('click')">🔘 单击 / 短按</button>
+                <button type="button" class="trigger-tab-btn" id="tab-btn-long" onclick="switchTriggerTab('long')">⏱️ 长按配置</button>
+                <button type="button" class="trigger-tab-btn" id="tab-btn-double" onclick="switchTriggerTab('double')">⚡ 双击配置</button>
+            </div>
+
+            <!-- Voice Mode Locked Card (Only for Voice Key 0x04) -->
+            <div id="voice-mode-locked-card" style="display:none; background:rgba(59,130,246,0.15); border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:24px;">🎙️</span>
+                    <div>
+                        <div style="font-size:14px; font-weight:700; color:#93c5fd;">语音对讲专属模式 (系统强制绑定)</div>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">按住时开启硬件麦克风录音并按下输入法热键，松开时停止录音并释放热键。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Long Press Enable / Timing Header -->
+            <div id="long-press-header" style="display:none; background:#070a10; border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <b style="font-size:13px; color:#fff;">⏱️ 启用长按功能 (Long Press)</b>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">按住时间达到阈值后触发独立长按动作，并自动抑制单击动作</div>
+                    </div>
+                    <label class="switch-toggle">
+                        <input type="checkbox" id="toggle-enable-long" onchange="onToggleTriggerEnable('long')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="long-press-timing-row" style="margin-top:10px; display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:12px; color:var(--text-muted); white-space:nowrap;">长按时间:</span>
+                    <input type="range" id="slider-long-ms" min="200" max="2000" step="50" value="600" oninput="onTimingSliderChange('long', this.value)" style="flex:1;">
+                    <span id="label-long-ms" style="font-size:12px; font-weight:bold; color:var(--accent-cyan); width:55px;">600ms</span>
+                </div>
+            </div>
+
+            <!-- Double Click Enable / Timing Header -->
+            <div id="double-click-header" style="display:none; background:#070a10; border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <b style="font-size:13px; color:#fff;">⚡ 启用双击功能 (Double Click)</b>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">在判定时间窗口内快速按下两次时触发独立双击动作</div>
+                    </div>
+                    <label class="switch-toggle">
+                        <input type="checkbox" id="toggle-enable-double" onchange="onToggleTriggerEnable('double')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="double-click-timing-row" style="margin-top:10px; display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:12px; color:var(--text-muted); white-space:nowrap;">双击窗口:</span>
+                    <input type="range" id="slider-double-ms" min="100" max="600" step="25" value="250" oninput="onTimingSliderChange('double', this.value)" style="flex:1;">
+                    <span id="label-double-ms" style="font-size:12px; font-weight:bold; color:var(--accent-cyan); width:55px;">250ms</span>
+                </div>
+            </div>
+
+            <!-- Mode Selector -->
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600;" id="action-mode-label">🎯 触发动作模式 (Action Mode)</label>
+                
+                <!-- Grid for Normal Keys (3 modes) -->
+                <div id="mode-selector-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <div class="mode-card" id="mode-card-2" onclick="selectActionMode(2)">
+                        <div style="font-size:18px; margin-bottom:2px;">⚡</div>
+                        <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">键盘直通</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">实时按住/连发</div>
+                    </div>
+                    <div class="mode-card" id="mode-card-1" onclick="selectActionMode(1)">
+                        <div style="font-size:18px; margin-bottom:2px;">🎯</div>
+                        <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">单次点按</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">组合快捷键</div>
+                    </div>
+                    <div class="mode-card" id="mode-card-4" onclick="selectActionMode(4)">
+                        <div style="font-size:18px; margin-bottom:2px;">🔊</div>
+                        <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">多媒体控制</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">音量/播放/睡眠</div>
+                    </div>
+                </div>
             </div>
 
             <!-- Keyboard Direct Capture Box -->
@@ -550,6 +742,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(id).classList.add('active');
+            if (id === 'tab-nvs') {
+                loadNvsConfig();
+            }
         }
 
         async function fetchStatus() {
@@ -614,56 +809,250 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             } catch(e){}
         }
 
+        let currentTriggerTab = 'click'; // 'click' | 'long' | 'double'
+        let currentSelectedMode = 2;     // 1: Tap, 2: Hold, 4: Consumer, 7: Voice
+        let editingBinding = null;
+
+        const FACTORY_KEYMAP = {
+            0x66: { source_vk: 0x66, has_click: true, click_type: 1, click_mod: 4, click_key: 43, click_cons: 0, has_long: true, long_ms: 600, long_type: 4, long_mod: 0, long_key: 0, long_cons: 50, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x04: { source_vk: 0x04, has_click: true, click_type: 7, click_mod: 64, click_key: 54, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x52: { source_vk: 0x52, has_click: true, click_type: 2, click_mod: 0, click_key: 82, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x51: { source_vk: 0x51, has_click: true, click_type: 2, click_mod: 0, click_key: 81, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x50: { source_vk: 0x50, has_click: true, click_type: 2, click_mod: 0, click_key: 80, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x4F: { source_vk: 0x4F, has_click: true, click_type: 2, click_mod: 0, click_key: 79, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x28: { source_vk: 0x28, has_click: true, click_type: 2, click_mod: 0, click_key: 40, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0xF1: { source_vk: 0xF1, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 558, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x24: { source_vk: 0x24, has_click: true, click_type: 1, click_mod: 8, click_key: 7, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x5D: { source_vk: 0x5D, has_click: true, click_type: 1, click_mod: 0, click_key: 44, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x80: { source_vk: 0x80, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 545, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0x81: { source_vk: 0x81, has_click: true, click_type: 4, click_mod: 0, click_key: 0, click_cons: 546, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
+            0xC0: { source_vk: 0xC0, has_click: true, click_type: 1, click_mod: 0, click_key: 65, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 }
+        };
+
+        function getActionSummaryText(type, mod, key, cons) {
+            if (type === 0 || (!key && !cons && !mod)) return '未映射';
+            let parts = [];
+            if (mod & 0x01) parts.push('Ctrl');
+            if (mod & 0x04) parts.push('Alt');
+            if (mod & 0x02) parts.push('Shift');
+            if (mod & 0x08) parts.push('Win');
+
+            if (cons > 0) {
+                const consMap = {
+                    545: '音量+', 546: '音量-', 547: '静音',
+                    516: '播放/暂停', 537: '下一曲', 538: '上一曲',
+                    530: '休眠', 558: '返回', 557: '主页'
+                };
+                parts.push(consMap[cons] || `多媒体 0x${cons.toString(16)}`);
+            } else if (key > 0) {
+                let name = `Key(0x${key.toString(16).toUpperCase()})`;
+                for (let k in DOM_TO_HID) {
+                    if (DOM_TO_HID[k] === key) {
+                        name = k.replace('Key', '').replace('Digit', '').replace('Arrow', '');
+                        break;
+                    }
+                }
+                parts.push(name);
+            }
+            return parts.join('+');
+        }
+
+        function updateRemoteVisualTooltips() {
+            if (!currentKeymap || !currentKeymap.bindings) return;
+            const vkList = [0x66, 0x04, 0x52, 0x51, 0x50, 0x4F, 0x28, 0xF1, 0x24, 0x5D, 0x80, 0x81, 0xC0];
+            vkList.forEach(vk => {
+                const hex = '0x' + vk.toString(16).toUpperCase().padStart(2, '0');
+                const el = document.getElementById(`btn-${hex}`);
+                if (!el) return;
+                const b = currentKeymap.bindings.find(x => x.source_vk === vk) || FACTORY_KEYMAP[vk];
+                if (b) {
+                    let desc = `【${KEY_NAMES[vk] || hex}】\n单击: ${getActionSummaryText(b.click_type, b.click_mod, b.click_key, b.click_cons)}`;
+                    if (b.has_long) {
+                        desc += `\n长按(${b.long_ms||600}ms): ${getActionSummaryText(b.long_type, b.long_mod, b.long_key, b.long_cons)}`;
+                    }
+                    if (b.has_double) {
+                        desc += `\n双击(${b.double_ms||250}ms): ${getActionSummaryText(b.double_type, b.double_mod, b.double_key, b.double_cons)}`;
+                    }
+                    el.title = desc;
+                }
+            });
+        }
+
         async function loadKeymap() {
             try {
                 const res = await fetch('/api/keymap');
                 currentKeymap = await res.json();
+                updateRemoteVisualTooltips();
             } catch(e){}
         }
 
-        function openRemapModal(keyVk, keyName) {
-            editingKey = keyVk;
-            const isVoice = (keyVk === 0x04 || keyVk === 0x3E);
-            
-            document.getElementById('modal-title').innerText = isVoice ? '设置 语音键 (Voice) 呼出快捷键' : `设置 ${keyName} 映射`;
-            document.getElementById('modal-vk-badge').innerText = '0x' + keyVk.toString(16).toUpperCase().padStart(2, '0');
-            document.getElementById('voice-key-banner').style.display = isVoice ? 'block' : 'none';
-            document.getElementById('quick-optgroup-media').style.display = isVoice ? 'none' : 'block';
+        function saveActiveTabToBinding() {
+            if (!editingBinding) return;
+            const mod = parseInt(document.getElementById('adv-mod').value) || 0;
+            const code = parseInt(document.getElementById('adv-code').value) || 0;
+            const mode = currentSelectedMode;
 
-            // Find current binding
-            const b = currentKeymap.bindings.find(x => x.source_vk === keyVk || (isVoice && x.source_vk === 0x04));
-            if (b && b.has_click) {
-                renderCurrentAction(b.click_type, b.click_mod, b.click_key, b.click_cons);
-            } else {
-                renderCurrentAction(0, 0, 0, 0);
+            // Always sync Long Press enable switch & timing slider
+            const longToggle = document.getElementById('toggle-enable-long');
+            if (longToggle) {
+                editingBinding.has_long = longToggle.checked;
+            }
+            const longSlider = document.getElementById('slider-long-ms');
+            if (longSlider) {
+                editingBinding.long_ms = parseInt(longSlider.value) || 600;
             }
 
+            // Always sync Double Click enable switch & timing slider
+            const doubleToggle = document.getElementById('toggle-enable-double');
+            if (doubleToggle) {
+                editingBinding.has_double = doubleToggle.checked;
+            }
+            const doubleSlider = document.getElementById('slider-double-ms');
+            if (doubleSlider) {
+                editingBinding.double_ms = parseInt(doubleSlider.value) || 250;
+            }
+
+            if (currentTriggerTab === 'click') {
+                editingBinding.click_type = mode;
+                if (mode === 4) {
+                    editingBinding.click_cons = code;
+                    editingBinding.click_key = 0;
+                    editingBinding.click_mod = 0;
+                } else {
+                    editingBinding.click_key = code;
+                    editingBinding.click_mod = mod;
+                    editingBinding.click_cons = 0;
+                }
+                editingBinding.has_click = (mode !== 0 && (code > 0 || mod > 0));
+            } else if (currentTriggerTab === 'long') {
+                editingBinding.long_type = mode;
+                if (mode === 4) {
+                    editingBinding.long_cons = code;
+                    editingBinding.long_key = 0;
+                    editingBinding.long_mod = 0;
+                } else {
+                    editingBinding.long_key = code;
+                    editingBinding.long_mod = mod;
+                    editingBinding.long_cons = 0;
+                }
+            } else if (currentTriggerTab === 'double') {
+                editingBinding.double_type = mode;
+                if (mode === 4) {
+                    editingBinding.double_cons = code;
+                    editingBinding.double_key = 0;
+                    editingBinding.double_mod = 0;
+                } else {
+                    editingBinding.double_key = code;
+                    editingBinding.double_mod = mod;
+                    editingBinding.double_cons = 0;
+                }
+            }
+        }
+
+        function loadTriggerDataToUI(tab) {
+            document.querySelectorAll('.trigger-tab-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById(`tab-btn-${tab}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const longHeader = document.getElementById('long-press-header');
+            const doubleHeader = document.getElementById('double-click-header');
+            const actionLabel = document.getElementById('action-mode-label');
+
+            let mode = 2, mod = 0, key = 0, cons = 0;
+
+            if (tab === 'click') {
+                longHeader.style.display = 'none';
+                doubleHeader.style.display = 'none';
+                actionLabel.innerText = '🎯 单击触发动作模式 (Click Action Mode)';
+                mode = editingBinding.click_type || 2;
+                mod = editingBinding.click_mod || 0;
+                key = editingBinding.click_key || 0;
+                cons = editingBinding.click_cons || 0;
+            } else if (tab === 'long') {
+                longHeader.style.display = 'block';
+                doubleHeader.style.display = 'none';
+                actionLabel.innerText = '⏱️ 长按触发动作模式 (Long Press Action Mode)';
+                document.getElementById('toggle-enable-long').checked = !!editingBinding.has_long;
+                document.getElementById('slider-long-ms').value = editingBinding.long_ms || 600;
+                document.getElementById('label-long-ms').innerText = `${editingBinding.long_ms || 600}ms`;
+                mode = editingBinding.long_type || 1;
+                mod = editingBinding.long_mod || 0;
+                key = editingBinding.long_key || 0;
+                cons = editingBinding.long_cons || 0;
+            } else if (tab === 'double') {
+                longHeader.style.display = 'none';
+                doubleHeader.style.display = 'block';
+                actionLabel.innerText = '⚡ 双击触发动作模式 (Double Click Action Mode)';
+                document.getElementById('toggle-enable-double').checked = !!editingBinding.has_double;
+                document.getElementById('slider-double-ms').value = editingBinding.double_ms || 250;
+                document.getElementById('label-double-ms').innerText = `${editingBinding.double_ms || 250}ms`;
+                mode = editingBinding.double_type || 1;
+                mod = editingBinding.double_mod || 0;
+                key = editingBinding.double_key || 0;
+                cons = editingBinding.double_cons || 0;
+            }
+
+            if (cons > 0) mode = 4;
+            else if (mode !== 1 && mode !== 2 && mode !== 4 && mode !== 7) mode = 2;
+
+            renderTriggerView(mode, mod, key, cons);
             document.getElementById('quick-key-select').value = '';
-            document.getElementById('remap-modal').style.display = 'flex';
             startKeyboardRecording();
         }
 
-        function closeRemapModal() {
-            document.getElementById('remap-modal').style.display = 'none';
+        function switchTriggerTab(tab) {
+            saveActiveTabToBinding();
+            currentTriggerTab = tab;
+            loadTriggerDataToUI(tab);
         }
 
-        function renderCurrentAction(type, mod, key, cons) {
+        function selectActionMode(mode) {
+            currentSelectedMode = mode;
+            const inst = document.getElementById('recorder-instruction');
+            const quickSelect = document.getElementById('quick-key-select');
+
+            let curMod = parseInt(document.getElementById('adv-mod').value) || 0;
+            let curCode = parseInt(document.getElementById('adv-code').value) || 0;
+
+            if (mode === 4) {
+                inst.innerHTML = '🔊 <b>多媒体控制模式</b>：请在下方【快捷选择与键码微调】下拉框中选择具体的控制功能';
+                let curCons = curCode >= 500 ? curCode : 545;
+                renderTriggerView(4, 0, 0, curCons);
+                quickSelect.value = `c:0:${curCons}`;
+            } else if (mode === 1) {
+                inst.innerHTML = '🎯 <b>单次点按模式</b>：按下遥控器发送一次快捷键（敲击键盘直接录制，如 Win+D, Alt+Tab, F5 等）';
+                let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x28;
+                renderTriggerView(1, curMod, curKey, 0);
+                startKeyboardRecording();
+            } else if (mode === 2) {
+                inst.innerHTML = '⚡ <b>键盘直通模式</b>：按住遥控器电脑键盘持续按住，支持系统级原生连发（敲击键盘直接录制，如 Space, Enter, 方向键等）';
+                let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x2C;
+                renderTriggerView(2, curMod, curKey, 0);
+                startKeyboardRecording();
+            } else if (mode === 7) {
+                inst.innerHTML = '🎙️ <b>语音输入法快捷键</b>：敲击键盘录制录音时保持按下的快捷键（如 Alt+, 微信输入法 或 Win+H 微软听写）';
+                let curKey = (curCode > 0 && curCode < 500) ? curCode : 54;
+                renderTriggerView(7, curMod || 64, curKey, 0);
+                startKeyboardRecording();
+            }
+        }
+
+        function renderTriggerView(type, mod, key, cons) {
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
             if (isVoice) {
-                type = 7; // Fixed to ACTION_VOICE_HOLD
+                type = 7;
                 cons = 0;
-            } else if (cons > 0) {
-                type = 5; // Fixed to ACTION_CONSUMER_HOLD
+            } else if (type === 4 || cons > 0) {
+                type = 4;
                 key = 0;
                 mod = 0;
-            } else if (key > 0 || mod > 0) {
-                type = 2; // Fixed to ACTION_KEYBOARD_HOLD
-                cons = 0;
-            } else {
-                type = 0;
             }
 
-            currentActionState = { type, mod, key, cons };
+            currentSelectedMode = type;
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+            const card = document.getElementById(`mode-card-${type}`);
+            if (card) card.classList.add('selected');
+
             document.getElementById('adv-mod').value = mod || 0;
             document.getElementById('adv-code').value = key || cons || 0;
 
@@ -707,6 +1096,104 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             display.innerHTML = chips.map(c => `<span class="kbd-chip">${c}</span>`).join(' + ');
         }
 
+        function onToggleTriggerEnable(trigger) {
+            if (!editingBinding) return;
+            if (trigger === 'long') {
+                editingBinding.has_long = document.getElementById('toggle-enable-long').checked;
+                showToast(editingBinding.has_long ? '已启用长按动作' : '已关闭长按动作');
+            } else if (trigger === 'double') {
+                editingBinding.has_double = document.getElementById('toggle-enable-double').checked;
+                showToast(editingBinding.has_double ? '已启用双击动作' : '已关闭双击动作');
+            }
+        }
+
+        function onTimingSliderChange(trigger, val) {
+            if (!editingBinding) return;
+            if (trigger === 'long') {
+                editingBinding.long_ms = parseInt(val);
+                document.getElementById('label-long-ms').innerText = `${val}ms`;
+            } else if (trigger === 'double') {
+                editingBinding.double_ms = parseInt(val);
+                document.getElementById('label-double-ms').innerText = `${val}ms`;
+            }
+        }
+
+        async function openRemapModal(keyVk, keyName) {
+            editingKey = keyVk;
+            const isVoice = (keyVk === 0x04 || keyVk === 0x3E);
+
+            // Fetch fresh keymap from server
+            try {
+                const res = await fetch('/api/keymap');
+                currentKeymap = await res.json();
+            } catch(e){}
+
+            let searchVk = keyVk;
+            if (keyVk === 0xFF) searchVk = 0x66;
+            if (keyVk === 0x4A) searchVk = 0x24;
+            if (keyVk === 0x65) searchVk = 0x5D;
+            if (keyVk === 0x35) searchVk = 0xC0;
+            if (keyVk === 0x3E) searchVk = 0x04;
+
+            const found = currentKeymap.bindings && currentKeymap.bindings.find(x => x.source_vk === searchVk);
+            if (found) {
+                editingBinding = JSON.parse(JSON.stringify(found));
+            } else if (FACTORY_KEYMAP[searchVk]) {
+                editingBinding = JSON.parse(JSON.stringify(FACTORY_KEYMAP[searchVk]));
+            } else {
+                editingBinding = {
+                    source_vk: searchVk,
+                    has_click: true,
+                    click_type: isVoice ? 7 : 2,
+                    click_mod: 0, click_key: 0, click_cons: 0,
+                    has_long: false, long_ms: 600, long_type: 1, long_mod: 0, long_key: 0, long_cons: 0,
+                    has_double: false, double_ms: 250, double_type: 1, double_mod: 0, double_key: 0, double_cons: 0
+                };
+            }
+
+            // Sync switches and sliders before tab loads
+            const longToggle = document.getElementById('toggle-enable-long');
+            if (longToggle) longToggle.checked = !!editingBinding.has_long;
+            const longSlider = document.getElementById('slider-long-ms');
+            if (longSlider) longSlider.value = editingBinding.long_ms || 600;
+            const longLabel = document.getElementById('label-long-ms');
+            if (longLabel) longLabel.innerText = `${editingBinding.long_ms || 600}ms`;
+
+            const doubleToggle = document.getElementById('toggle-enable-double');
+            if (doubleToggle) doubleToggle.checked = !!editingBinding.has_double;
+            const doubleSlider = document.getElementById('slider-double-ms');
+            if (doubleSlider) doubleSlider.value = editingBinding.double_ms || 250;
+            const doubleLabel = document.getElementById('label-double-ms');
+            if (doubleLabel) doubleLabel.innerText = `${editingBinding.double_ms || 250}ms`;
+
+            document.getElementById('modal-title').innerText = isVoice ? '设置 语音键 (Voice) 呼出快捷键' : `设置 ${keyName} 映射`;
+            document.getElementById('modal-vk-badge').innerText = '0x' + searchVk.toString(16).toUpperCase().padStart(2, '0');
+            document.getElementById('quick-optgroup-media').style.display = isVoice ? 'none' : 'block';
+
+            if (isVoice) {
+                document.getElementById('trigger-tab-bar').style.display = 'none';
+                document.getElementById('mode-selector-grid').style.display = 'none';
+                document.getElementById('voice-mode-locked-card').style.display = 'block';
+                document.getElementById('long-press-header').style.display = 'none';
+                document.getElementById('double-click-header').style.display = 'none';
+                currentTriggerTab = 'click';
+                currentSelectedMode = 7;
+                renderTriggerView(7, editingBinding.click_mod || 64, editingBinding.click_key || 54, 0);
+            } else {
+                document.getElementById('voice-mode-locked-card').style.display = 'none';
+                currentTriggerTab = 'click';
+                loadTriggerDataToUI('click');
+            }
+
+            document.getElementById('quick-key-select').value = '';
+            document.getElementById('remap-modal').style.display = 'flex';
+            startKeyboardRecording();
+        }
+
+        function closeRemapModal() {
+            document.getElementById('remap-modal').style.display = 'none';
+        }
+
         function onQuickKeySelect(val) {
             if (!val) return;
             const parts = val.split(':');
@@ -717,15 +1204,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             if (prefix === 'c') {
                 if (isVoice) {
-                    alert('语音键专用于语音录音与呼出快捷键，不可设为多媒体键');
+                    showToast('语音键专用于语音录音与呼出快捷键，不可设为多媒体键', true);
                     document.getElementById('quick-key-select').value = '';
                     return;
                 }
-                renderCurrentAction(5, 0, 0, code);
+                selectActionMode(4);
+                renderTriggerView(4, 0, 0, code);
             } else if (prefix === 'm') {
-                renderCurrentAction(isVoice ? 7 : 2, mod, 0, 0);
+                if (currentSelectedMode === 4) selectActionMode(2);
+                renderTriggerView(currentSelectedMode, mod, 0, 0);
             } else if (prefix === 'k') {
-                renderCurrentAction(isVoice ? 7 : 2, mod, code, 0);
+                if (currentSelectedMode === 4) selectActionMode(2);
+                renderTriggerView(currentSelectedMode, mod, code, 0);
             }
         }
 
@@ -735,18 +1225,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (isVoice) {
-                renderCurrentAction(7, mod, code, 0);
-            } else if (code >= 500) {
-                renderCurrentAction(5, 0, 0, code);
+                renderTriggerView(7, mod, code, 0);
+            } else if (currentSelectedMode === 4 || code >= 500) {
+                renderTriggerView(4, 0, 0, code);
             } else {
-                renderCurrentAction((code > 0 || mod > 0) ? 2 : 0, mod, code, 0);
+                renderTriggerView(currentSelectedMode, mod, code, 0);
             }
         }
 
         function startKeyboardRecording() {
             const box = document.getElementById('key-recorder-box');
-            box.focus();
-            box.classList.add('recording');
+            if (box) {
+                box.focus();
+                box.classList.add('recording');
+            }
         }
 
         // Global Keyboard Event Capturer for Ultra-Intuitive Remapping
@@ -773,67 +1265,68 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (hidCode > 0) {
-                renderCurrentAction(isVoice ? 7 : 2, mod, hidCode, 0);
+                if (!isVoice && currentSelectedMode === 4) {
+                    selectActionMode(2); // Auto switch from media to hold on keyboard input
+                }
+                renderTriggerView(currentSelectedMode, mod, hidCode, 0);
             }
         });
 
         function clearCurrentKeyBinding() {
-            renderCurrentAction(0, 0, 0, 0);
+            if (currentTriggerTab === 'click') {
+                renderTriggerView(0, 0, 0, 0);
+                if (editingBinding) editingBinding.has_click = false;
+            } else if (currentTriggerTab === 'long') {
+                document.getElementById('toggle-enable-long').checked = false;
+                if (editingBinding) editingBinding.has_long = false;
+                renderTriggerView(0, 0, 0, 0);
+            } else if (currentTriggerTab === 'double') {
+                document.getElementById('toggle-enable-double').checked = false;
+                if (editingBinding) editingBinding.has_double = false;
+                renderTriggerView(0, 0, 0, 0);
+            }
             document.getElementById('quick-key-select').value = '';
+            showToast('已清空当前动作配置');
         }
 
         async function saveRemapConfig() {
+            saveActiveTabToBinding();
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
-            let b = currentKeymap.bindings.find(x => x.source_vk === editingKey || (isVoice && x.source_vk === 0x04));
-            if (!b) {
-                b = { source_vk: isVoice ? 0x04 : editingKey };
-                currentKeymap.bindings.push(b);
-            }
-
-            let actType = currentActionState.type;
-            let mod = currentActionState.mod;
-            let key = currentActionState.key;
-            let cons = currentActionState.cons;
 
             if (isVoice) {
-                b.source_vk = 0x04;
-                b.has_click = true;
-                b.click_type = 7; // ACTION_VOICE_HOLD
-                b.click_mod = mod;
-                b.click_key = key;
-                b.click_cons = 0;
-            } else if (cons > 0) {
-                b.has_click = true;
-                b.click_type = 5; // ACTION_CONSUMER_HOLD
-                b.click_mod = 0;
-                b.click_key = 0;
-                b.click_cons = cons;
-            } else if (key > 0 || mod > 0) {
-                b.has_click = true;
-                b.click_type = 2; // ACTION_KEYBOARD_HOLD
-                b.click_mod = mod;
-                b.click_key = key;
-                b.click_cons = 0;
-            } else {
-                b.has_click = false;
-                b.click_type = 0;
-                b.click_mod = 0;
-                b.click_key = 0;
-                b.click_cons = 0;
+                editingBinding.source_vk = 0x04;
+                editingBinding.has_click = true;
+                editingBinding.click_type = 7; // ACTION_VOICE_HOLD
+                editingBinding.has_long = false;
+                editingBinding.has_double = false;
             }
 
-            // Remove legacy complex timers for 100% natural transparent physical forwarding
-            b.has_long = false;
-            b.has_double = false;
+            if (!currentKeymap.bindings) currentKeymap.bindings = [];
 
-            await fetch('/api/keymap/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(currentKeymap)
-            });
+            // Update in currentKeymap.bindings
+            const idx = currentKeymap.bindings.findIndex(x => x.source_vk === editingBinding.source_vk || (isVoice && x.source_vk === 0x04));
+            if (idx >= 0) {
+                currentKeymap.bindings[idx] = editingBinding;
+            } else {
+                currentKeymap.bindings.push(editingBinding);
+            }
 
-            closeRemapModal();
-            alert('按键映射已保存到板载存储并立即生效！');
+            try {
+                const res = await fetch('/api/keymap/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentKeymap)
+                });
+                if (res.ok) {
+                    closeRemapModal();
+                    showToast('按键映射（含单击/长按/双击）已保存并生效！');
+                    loadKeymap();
+                } else {
+                    showToast('保存失败', true);
+                }
+            } catch(e) {
+                showToast('保存请求出错: ' + e.message, true);
+            }
         }
 
         async function resetAllKeymaps() {
@@ -923,6 +1416,165 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (!confirm('确定要重启 ESP32-S3 设备吗？')) return;
             await fetch('/api/system/restart', { method: 'POST' });
             alert('正在重启...');
+        }
+
+        function showToast(msg, isError = false) {
+            let toast = document.getElementById('app-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'app-toast';
+                toast.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; color:#fff; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.5); transition:opacity 0.3s; pointer-events:none;';
+                document.body.appendChild(toast);
+            }
+            toast.style.background = isError ? '#ef4444' : '#10b981';
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        async function loadNvsConfig() {
+            try {
+                const res = await fetch('/api/nvs');
+                const json = await res.json();
+                const editor = document.getElementById('nvs-editor');
+                editor.value = JSON.stringify(json, null, 2);
+                validateNvsJson();
+                showToast('NVS 配置已从 Flash 加载');
+            } catch(e) {
+                showToast('读取 NVS 失败: ' + e.message, true);
+            }
+        }
+
+        function validateNvsJson() {
+            const editor = document.getElementById('nvs-editor');
+            const badge = document.getElementById('nvs-json-status');
+            if (!editor || !badge) return false;
+            try {
+                JSON.parse(editor.value);
+                badge.innerHTML = '🟢 JSON 格式有效';
+                badge.style.background = 'rgba(16,185,129,0.2)';
+                badge.style.color = '#34d399';
+                badge.style.borderColor = 'rgba(16,185,129,0.4)';
+                return true;
+            } catch(e) {
+                badge.innerHTML = '🔴 ' + e.message;
+                badge.style.background = 'rgba(239,68,68,0.2)';
+                badge.style.color = '#f87171';
+                badge.style.borderColor = 'rgba(239,68,68,0.4)';
+                return false;
+            }
+        }
+
+        function formatNvsJson() {
+            const editor = document.getElementById('nvs-editor');
+            try {
+                const obj = JSON.parse(editor.value);
+                editor.value = JSON.stringify(obj, null, 2);
+                validateNvsJson();
+                showToast('JSON 格式化完成');
+            } catch(e) {
+                showToast('无法格式化，当前 JSON 存在语法错误: ' + e.message, true);
+            }
+        }
+
+        function copyNvsJson() {
+            const editor = document.getElementById('nvs-editor');
+            navigator.clipboard.writeText(editor.value).then(() => {
+                showToast('已复制 NVS JSON 到剪贴板');
+            }).catch(() => {
+                editor.select();
+                document.execCommand('copy');
+                showToast('已复制到剪贴板');
+            });
+        }
+
+        function exportNvsJson() {
+            const editor = document.getElementById('nvs-editor');
+            const blob = new Blob([editor.value], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.href = url;
+            a.download = `RemoteMapper_NVS_Backup_${timeStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('NVS 备份文件已导出下载');
+        }
+
+        function importNvsJson(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const obj = JSON.parse(evt.target.result);
+                    document.getElementById('nvs-editor').value = JSON.stringify(obj, null, 2);
+                    validateNvsJson();
+                    showToast('文件导入成功，请点击“保存写入 NVS”生效');
+                } catch(err) {
+                    showToast('导入文件解析失败: ' + err.message, true);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        async function saveNvsConfig() {
+            const editor = document.getElementById('nvs-editor');
+            if (!validateNvsJson()) {
+                showToast('当前 JSON 存在语法错误，无法保存！', true);
+                return;
+            }
+            if (!confirm('确定要将当前编辑的 JSON 写入 ESP32 Flash NVS 吗？\n写入后参数将立即更新。')) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/nvs/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: editor.value
+                });
+                const ret = await res.json();
+                if (res.ok) {
+                    showToast(ret.message || 'NVS 配置已成功保存到 Flash！');
+                    loadKeymap();
+                } else {
+                    showToast('保存失败: ' + (ret.error || '未知错误'), true);
+                }
+            } catch(e) {
+                showToast('保存请求失败: ' + e.message, true);
+            }
+        }
+
+        async function resetNvsFactory() {
+            if (!confirm('⚠️ 警告：此操作将清空 ESP32 内部的所有 NVS 持久化数据（包括 Wi-Fi 密码、遥控器绑定、自定义按键），并自动重启！\n\n确定要执行出厂重置吗？')) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/nvs/reset', { method: 'POST' });
+                const ret = await res.json();
+                showToast(ret.message || 'NVS 已清空，设备重启中...');
+                setTimeout(() => location.reload(), 3000);
+            } catch(e) {
+                showToast('操作失败: ' + e.message, true);
+            }
+        }
+
+        function handleNvsEditorKey(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const textarea = e.target;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + 2;
+                validateNvsJson();
+            }
         }
 
         // Periodic background pollers

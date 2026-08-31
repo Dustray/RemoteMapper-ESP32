@@ -7,6 +7,7 @@
 #include "audio/audio_pipeline.h"
 #include "keymap/key_state_machine.h"
 #include "keymap/key_config_storage.h"
+#include "nvs/nvs_manager.h"
 #include <WebServer.h>
 #include <ArduinoJson.h>
 
@@ -156,6 +157,36 @@ static void handle_system_restart() {
     ESP.restart();
 }
 
+static void handle_nvs_get() {
+    String json = nvs_manager_dump_json();
+    s_server.send(200, "application/json", json);
+}
+
+static void handle_nvs_save() {
+    if (!s_server.hasArg("plain")) {
+        s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
+        return;
+    }
+    String err;
+    bool ok = nvs_manager_apply_json(s_server.arg("plain"), err);
+    if (ok) {
+        s_server.send(200, "application/json", "{\"status\":\"saved\",\"message\":\"NVS配置已成功更新并写入Flash！\"}");
+    } else {
+        s_server.send(400, "application/json", String("{\"error\":\"") + err + "\"}");
+    }
+}
+
+static void handle_nvs_reset() {
+    bool ok = nvs_manager_erase_all();
+    if (ok) {
+        s_server.send(200, "application/json", "{\"status\":\"erased\",\"message\":\"NVS已清空，系统即将重启...\"}");
+        delay(500);
+        ESP.restart();
+    } else {
+        s_server.send(500, "application/json", "{\"error\":\"erase_failed\"}");
+    }
+}
+
 static void handle_captive_portal() {
     String host = s_server.hostHeader();
     if (host != "192.168.4.1" && host != "remotemapper.local") {
@@ -183,6 +214,9 @@ void web_server_init(void) {
     s_server.on("/api/ble/unpair", HTTP_POST, handle_ble_unpair);
     s_server.on("/api/ble/info", HTTP_GET, handle_ble_info);
     s_server.on("/api/ble/reconnect", HTTP_POST, handle_ble_reconnect);
+    s_server.on("/api/nvs", HTTP_GET, handle_nvs_get);
+    s_server.on("/api/nvs/save", HTTP_POST, handle_nvs_save);
+    s_server.on("/api/nvs/reset", HTTP_POST, handle_nvs_reset);
     s_server.on("/api/system/restart", HTTP_POST, handle_system_restart);
 
     // Captive Portal probe redirects
