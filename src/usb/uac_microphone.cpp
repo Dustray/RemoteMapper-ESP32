@@ -203,7 +203,10 @@ static bool uac_driver_control_xfer_cb(uint8_t rhport, uint8_t stage,
             if (cs == 0x01) return tud_control_xfer(rhport, req, &s_mic_mute,   1);
             else             return tud_control_xfer(rhport, req, &s_mic_volume, 2);
         }
-        if (r == 0x01) return tud_control_status(rhport, req); // SET_CUR
+        if (r == 0x01) {   // SET_CUR
+            if (cs == 0x01) return tud_control_xfer(rhport, req, &s_mic_mute,   1);
+            else             return tud_control_xfer(rhport, req, &s_mic_volume, 2);
+        }
         static int16_t vol_min = -32768, vol_max = 0, vol_res = 256;
         if (r == 0x82) return tud_control_xfer(rhport, req, &vol_min, 2);
         if (r == 0x83) return tud_control_xfer(rhport, req, &vol_max, 2);

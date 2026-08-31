@@ -99,9 +99,12 @@ static uint8_t s_last_hogp_key = 0;
 static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
     if (length < 1) return;
 
-    // 1. Non-keyboard packets (len > 8, e.g. vendor audio/debug reports)
+    // 1. Audio / Voice Packets (len > 8, e.g. 20, 120, 240 bytes ADPCM)
     if (length > 8) {
-        return; // NEVER process non-keyboard frames as keys!
+        app_log("HOGP_AUD", "Voice frame len=%d from Char %s", (int)length, pChar->getUUID().toString().c_str());
+        s_last_audio_ms = millis();
+        audio_pipeline_feed_adpcm(&g_audio_pipeline, pData, length);
+        return;
     }
 
     // Dump raw bytes for diagnostics (only for genuine key reports len <= 8)
@@ -173,6 +176,14 @@ static void on_hogp_report_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pD
 
     if (raw_key != 0) {
         app_log("HOGP", "Key event: 0x%02X (%s)", raw_key, is_pressed ? "DOWN" : "UP");
+        if (raw_key == MI_KEY_VOICE || raw_key == MI_KEY_VOICE_ALT) {
+            app_log("VOICE", "Voice button event: 0x%02X (%s)", raw_key, is_pressed ? "DOWN" : "UP");
+            if (s_char_cmd != nullptr && is_pressed) {
+                uint8_t cmd_open[] = { 0x0C, 0x00 };
+                s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
+                app_log("ATVV", "Triggered MIC_OPEN on Voice key press");
+            }
+        }
         key_engine_feed_key(&g_key_engine, raw_key, is_pressed, millis());
     }
 }
@@ -297,7 +308,11 @@ static bool setup_services_and_handshake() {
     // 1. Security & Bonding
     s_client->secureConnection();
 
-    // 2. Discover all services and characteristics
+    // 2. Fast connection parameters (15ms interval)
+    s_client->setDataLen(251);
+    s_client->updateConnParams(12, 12, 0, 400);
+
+    // 3. Discover services
     std::vector<NimBLERemoteService*>* pServices = s_client->getServices(true);
     if (!pServices) {
         app_log("BLE", "No GATT services found");
@@ -309,40 +324,51 @@ static bool setup_services_and_handshake() {
     int sub_count = 0;
     for (auto* pSvc : *pServices) {
         String svc_uuid = pSvc->getUUID().toString().c_str();
-        app_log("BLE", "Service: %s", svc_uuid.c_str());
+        svc_uuid.toLowerCase();
+        app_log("GATT_SVC", "Service: %s", svc_uuid.c_str());
+
+        // Skip known standard BLE metadata services (0x1800 GAP, 0x1801 GATT, 0x180A DIS, 0x180F Battery)
+        if (svc_uuid.indexOf("1800") >= 0 || svc_uuid.indexOf("1801") >= 0 || 
+            svc_uuid.indexOf("180a") >= 0 || svc_uuid.indexOf("180f") >= 0) {
+            continue;
+        }
 
         std::vector<NimBLERemoteCharacteristic*>* pChars = pSvc->getCharacteristics(true);
         if (!pChars) continue;
 
         for (auto* pChar : *pChars) {
             String char_uuid = pChar->getUUID().toString().c_str();
+            char_uuid.toLowerCase();
             bool can_notif = pChar->canNotify();
             bool can_ind = pChar->canIndicate();
             bool can_wr = pChar->canWrite() || pChar->canWriteNoResponse();
-            app_log("BLE", "  Char: %s (Notify:%d, Indicate:%d, Write:%d)", char_uuid.c_str(), can_notif ? 1 : 0, can_ind ? 1 : 0, can_wr ? 1 : 0);
+            app_log("GATT_CHAR", "  Char: %s (N:%d, I:%d, W:%d)", char_uuid.c_str(), can_notif ? 1 : 0, can_ind ? 1 : 0, can_wr ? 1 : 0);
 
-            // Match ATVV CMD (0xab5e0002)
-            if (pChar->getUUID().equals(NimBLEUUID(ATVV_CHAR_CMD_UUID))) {
+            // Match ATVV CMD (ab5e0002)
+            if (char_uuid.indexOf("ab5e0002") >= 0) {
                 s_char_cmd = pChar;
+                app_log("ATVV", "Matched ATVV CMD Char: %s", char_uuid.c_str());
             }
-            // Match ATVV AUD (0xab5e0003)
-            else if (pChar->getUUID().equals(NimBLEUUID(ATVV_CHAR_AUD_UUID))) {
+            // Match ATVV AUD (ab5e0003)
+            else if (char_uuid.indexOf("ab5e0003") >= 0) {
                 s_char_aud = pChar;
                 if (can_notif) {
-                    pChar->subscribe(true, on_audio_notify);
+                    pChar->subscribe(true, on_audio_notify, false);
                     sub_count++;
+                    app_log("ATVV", "Subscribed to ATVV AUD Char: %s", char_uuid.c_str());
                 }
             }
-            // Match ATVV CTL (0xab5e0004)
-            else if (pChar->getUUID().equals(NimBLEUUID(ATVV_CHAR_CTL_UUID))) {
+            // Match ATVV CTL (ab5e0004)
+            else if (char_uuid.indexOf("ab5e0004") >= 0) {
                 s_char_ctl = pChar;
                 if (can_notif) {
-                    pChar->subscribe(true, on_ctl_notify);
+                    pChar->subscribe(true, on_ctl_notify, false);
                     sub_count++;
+                    app_log("ATVV", "Subscribed to ATVV CTL Char: %s", char_uuid.c_str());
                 }
             }
             // Match Protocol Mode (0x2A4E) -> write Report Mode (0x01)
-            else if (pChar->getUUID().equals(NimBLEUUID((uint16_t)0x2A4E))) {
+            else if (char_uuid.indexOf("2a4e") >= 0) {
                 if (can_wr) {
                     uint8_t mode = 0x01;
                     pChar->writeValue(&mode, 1, false);
@@ -350,17 +376,16 @@ static bool setup_services_and_handshake() {
                 }
             }
             // Match HID Control Point (0x2A4C) -> write Exit Suspend (0x00)
-            else if (pChar->getUUID().equals(NimBLEUUID((uint16_t)0x2A4C))) {
+            else if (char_uuid.indexOf("2a4c") >= 0) {
                 if (can_wr) {
                     uint8_t cp = 0x00;
                     pChar->writeValue(&cp, 1, false);
                 }
             }
             // Match HOGP Report (0x2A4D) or any notify char in 0x1812 service
-            else if (pChar->getUUID().equals(NimBLEUUID((uint16_t)0x2A4D)) || 
-                     pSvc->getUUID().equals(NimBLEUUID((uint16_t)0x1812))) {
+            else if (char_uuid.indexOf("2a4d") >= 0 || svc_uuid.indexOf("1812") >= 0) {
                 if (can_notif || can_ind) {
-                    pChar->subscribe(true, on_hogp_report_notify);
+                    pChar->subscribe(true, on_hogp_report_notify, false);
                     sub_count++;
                     app_log("HOGP", "Subscribed to Report Char: %s", char_uuid.c_str());
                 }
@@ -370,11 +395,11 @@ static bool setup_services_and_handshake() {
 
     app_log("BLE", "Total Subscribed Characteristic(s): %d", sub_count);
 
-    // 3. ATVV Handshake
+    // 4. ATVV Handshake
     if (s_char_cmd) {
         uint8_t cmd_caps[] = { 0x0A, 0x01, 0x00, 0x00, 0x03, 0x03 };
         s_char_cmd->writeValue(cmd_caps, sizeof(cmd_caps), false);
-        delay(150);
+        vTaskDelay(pdMS_TO_TICKS(20));
         uint8_t cmd_open[] = { 0x0C, 0x00 };
         s_char_cmd->writeValue(cmd_open, sizeof(cmd_open), false);
         app_log("ATVV", "Handshake completed (MIC_OPEN active)");
@@ -489,14 +514,8 @@ void ble_remote_init(void) {
     NimBLEScan* pScan = NimBLEDevice::getScan();
     pScan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks());
     
-    // If we have a saved bound remote, attempt proactive direct connect, otherwise start scan
-    if (s_bound_mac.length() > 0) {
-        s_pending_mac = s_bound_mac;
-        s_pending_addr_type = s_bound_addr_type;
-        s_do_connect = true;
-    } else {
-        start_scan();
-    }
+    // Start continuous fast scan immediately (instant catch when remote advertises)
+    start_scan();
 }
 
 void ble_remote_task(void) {
