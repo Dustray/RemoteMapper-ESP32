@@ -11,7 +11,7 @@
     },
     "F15": {
         "name": "打开Gemini",
-        "command": "start https://gemini.google.com/app",
+        "command": "start https://google.com/aimode",
         "enabled": true
     },
     "F16": {
