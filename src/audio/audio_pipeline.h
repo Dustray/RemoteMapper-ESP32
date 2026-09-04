@@ -28,6 +28,8 @@ typedef struct {
     uint32_t             total_frames_decoded;
     uint32_t             total_samples_pushed;
     uint32_t             underrun_count;
+    uint32_t             lead_mute_remaining;
+    uint32_t             fade_in_remaining;
 } audio_pipeline_t;
 
 /**

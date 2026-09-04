@@ -3,16 +3,16 @@
 
 void audio_agc_init(audio_agc_t *agc) {
     if (!agc) return;
-    agc->peak = 1000.0f;
     agc->target_level = 28000.0f;
     agc->decay_rate = 0.9997f;
     agc->max_gain = 30.0f;
     agc->noise_floor = 200.0f;
+    agc->peak = agc->target_level; // Soft-start: start at 1.0x gain (0dB) to prevent burst noise
 }
 
 void audio_agc_reset(audio_agc_t *agc) {
     if (!agc) return;
-    agc->peak = 1000.0f;
+    agc->peak = agc->target_level; // Soft-start: reset to 1.0x gain (0dB)
 }
 
 void audio_agc_process(audio_agc_t *agc, int16_t *samples, size_t count) {

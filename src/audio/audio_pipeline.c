@@ -27,7 +27,9 @@ void audio_pipeline_start_session(audio_pipeline_t *pipeline, uint8_t session_id
     audio_ring_buffer_clear(&pipeline->ring_buf);
     pipeline->session_id = session_id;
     pipeline->active = true;
-    pipeline->buffering = true; // Wait for initial 30ms prefill cushion to prevent jitter underruns
+    pipeline->buffering = true; // Wait for initial prefill cushion to prevent jitter underruns
+    pipeline->lead_mute_remaining = AUDIO_LEAD_MUTE_SAMPLES;
+    pipeline->fade_in_remaining = AUDIO_FADE_IN_SAMPLES;
     pipeline->total_frames_decoded = 0;
     pipeline->total_samples_pushed = 0;
     pipeline->underrun_count = 0;
@@ -53,10 +55,33 @@ size_t audio_pipeline_feed_adpcm(audio_pipeline_t *pipeline, const uint8_t *adpc
     // 3. DC-Blocker (strips ~0-80Hz sub-bass and AC hum)
     audio_filter_dc_block(&pipeline->filter, pipeline->temp_pcm, samples_decoded);
 
-    // 4. Dynamic AGC + Soft Clip (target 28000, decay 0.9997, max_gain 30)
+    // 4. Dynamic AGC + Soft Clip
+    // KEY: During the lead mute period, zero the samples BEFORE AGC so the peak envelope
+    // sees silence and does NOT decay. This keeps gain locked at 1.0x (soft-start).
+    // When mute ends, the AGC is still at 1.0x and can only rise from real audio -> no burst.
+    for (size_t i = 0; i < samples_decoded; i++) {
+        if (pipeline->lead_mute_remaining > 0) {
+            // Feed zeros to AGC so it doesn't decay the peak during silence
+            pipeline->temp_pcm[i] = 0;
+            pipeline->lead_mute_remaining--;
+        }
+        // fade_in samples pass through AGC normally (they're real audio, just new)
+    }
     audio_agc_process(&pipeline->agc, pipeline->temp_pcm, samples_decoded);
 
-    // 5. Enqueue into ring buffer
+    // 5. Post-Processing: Micro Fade-In (10ms) applied AFTER AGC
+    // The mute already zeroed the first 150ms. This 10ms fade-in smooths the
+    // hard boundary transition. It is too short (160 samples) to create audible
+    // noise artifacts, but long enough to eliminate any hard step discontinuity.
+    for (size_t i = 0; i < samples_decoded; i++) {
+        if (pipeline->fade_in_remaining > 0) {
+            uint32_t step = AUDIO_FADE_IN_SAMPLES - pipeline->fade_in_remaining;
+            pipeline->temp_pcm[i] = (int16_t)(((int32_t)pipeline->temp_pcm[i] * (int32_t)step) / AUDIO_FADE_IN_SAMPLES);
+            pipeline->fade_in_remaining--;
+        }
+    }
+
+    // 6. Enqueue into ring buffer
     size_t written = audio_ring_buffer_write(&pipeline->ring_buf, pipeline->temp_pcm, samples_decoded);
 
     pipeline->total_frames_decoded++;
@@ -109,5 +134,7 @@ void audio_pipeline_stop_session(audio_pipeline_t *pipeline) {
     if (!pipeline) return;
     pipeline->active = false;
     pipeline->buffering = false;
+    pipeline->lead_mute_remaining = 0;
+    pipeline->fade_in_remaining = 0;
     audio_ring_buffer_clear(&pipeline->ring_buf);
 }

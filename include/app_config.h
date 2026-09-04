@@ -22,7 +22,9 @@ extern "C" {
 #define AGC_DECAY_RATE            0.9997f
 #define AGC_MAX_GAIN              30.0f
 #define AGC_NOISE_FLOOR           200.0f
-#define AGC_INITIAL_PEAK          1000.0f
+#define AGC_INITIAL_PEAK          28000.0f  // Soft-start: initial gain = 1.0x (0dB) to avoid 28x burst
+#define AUDIO_LEAD_MUTE_SAMPLES   2400      // 150ms silence zone (2400 samples @ 16kHz) to eliminate button click & pops
+#define AUDIO_FADE_IN_SAMPLES     160       // 10ms micro fade-in (160 samples @ 16kHz) - only for transient smoothing at boundary
 #define DECLIP_THRESHOLD          1000
 
 // ==========================================
