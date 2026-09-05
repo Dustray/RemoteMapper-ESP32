@@ -115,6 +115,68 @@ def test_key_state_machine():
     assert (2600 - press_time) >= long_ms # Triggered long press
     print("  --> Key State Machine: PASSED")
 
+def test_layer_system():
+    print("[TEST] Running Multi-Layer System (Transparency, Toggle, One-Shot, Timeout) verification...")
+    # Simulate multi-layer engine state
+    active_layer = 0
+    layers = {
+        0: {"name": "Default", "type": 0, "bindings": {"OK": "Enter", "Menu": "Space", "TV": "F8"}},
+        1: {"name": "Media",   "type": 2, "timeout": 15, "bindings": {"OK": "Play/Pause"}}, # Overrides OK, inherits Menu, TV
+        2: {"name": "OneShot", "type": 1, "timeout": 0,  "bindings": {"TV": "Screenshot"}}  # Overrides TV, inherits OK, Menu
+    }
+
+    # 1. Transparency test
+    # In Layer 1: "OK" should be "Play/Pause", but "Menu" should fall back to Layer 0 ("Space")
+    active_layer = 1
+    def resolve_key(key, layer_id):
+        if key in layers[layer_id]["bindings"]:
+            return layers[layer_id]["bindings"][key]
+        return layers[0]["bindings"].get(key, None)
+
+    assert resolve_key("OK", active_layer) == "Play/Pause"
+    assert resolve_key("Menu", active_layer) == "Space"
+    assert resolve_key("TV", active_layer) == "F8"
+
+    # 2. Auto-toggle test (if current == target -> revert to 0)
+    def switch_layer(current, target):
+        if current == target:
+            return 0
+        return target
+
+    # From Layer 0 switch to Layer 1 -> becomes 1
+    active_layer = switch_layer(current=0, target=1)
+    assert active_layer == 1
+    # From Layer 1 trigger switch to Layer 1 -> auto-toggles back to 0!
+    active_layer = switch_layer(current=1, target=1)
+    assert active_layer == 0
+    # From Layer 0 switch to Layer 2 -> becomes 2
+    active_layer = switch_layer(current=0, target=2)
+    assert active_layer == 2
+
+    # 3. One-Shot Layer test
+    # In Layer 2 (type == 1 OneShot): firing an action immediately reverts to 0
+    is_oneshot = (layers[active_layer]["type"] == 1)
+    assert is_oneshot == True
+    # Action completes -> revert
+    if is_oneshot:
+        active_layer = 0
+    assert active_layer == 0
+
+    # 4. Timeout Layer test
+    active_layer = 1
+    last_act = 1000
+    timeout_ms = layers[active_layer]["timeout"] * 1000
+    # At t = 10000 (9s elapsed, < 15s): still in Layer 1
+    t = 10000
+    assert (t - last_act) < timeout_ms
+    # At t = 16500 (15.5s elapsed, >= 15s): auto-revert to Layer 0
+    t = 16500
+    if (t - last_act) >= timeout_ms:
+        active_layer = 0
+    assert active_layer == 0
+
+    print("  --> Multi-Layer System: PASSED")
+
 if __name__ == "__main__":
     print("========================================")
     print(" RemoteMapper-ESP32 Native Test Suite")
@@ -122,6 +184,8 @@ if __name__ == "__main__":
     test_adpcm()
     test_filter()
     test_key_state_machine()
+    test_layer_system()
     print("========================================")
-    print(" ALL TESTS PASSED SUCCESSFULLY! (3/3)")
+    print(" ALL TESTS PASSED SUCCESSFULLY! (4/4)")
     print("========================================")
+

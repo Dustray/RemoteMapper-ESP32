@@ -167,7 +167,7 @@ bool nvs_manager_apply_json(const String& json_str, String& err_msg) {
             if (testJson.length() > 0) {
                 key_mapper_engine_t test_engine;
                 memset(&test_engine, 0, sizeof(test_engine));
-                if (!key_config_from_json(&test_engine, testJson) || test_engine.binding_count == 0) {
+                if (!key_config_from_json(&test_engine, testJson) || test_engine.layers[0].binding_count == 0) {
                     err_msg = "【安全保护拦截】keymap_conf.cfg_json 按键映射格式错误或为空，已拒绝写入 Flash 以避免设备故障！";
                     return false;
                 }

@@ -13,14 +13,29 @@ static uint32_t s_flash_expire_time = 0;
 static led_state_t s_flash_state = LED_STATE_WAIT_CONNECTION;
 static bool s_is_flashing = false;
 
+static uint32_t s_layer_color = 0x00FF00; // Default green for Layer 0
+static bool s_layer_flash = false;
+
 static void update_hardware_led(led_state_t state) {
+    if (s_layer_flash && s_is_flashing) {
+        uint8_t r = (uint8_t)(((s_layer_color >> 16) & 0xFF) * 36 / 255);
+        uint8_t g = (uint8_t)(((s_layer_color >> 8) & 0xFF) * 36 / 255);
+        uint8_t b = (uint8_t)((s_layer_color & 0xFF) * 36 / 255);
+        neopixelWrite(RGB_BUILTIN, r, g, b);
+        return;
+    }
+
     switch (state) {
         case LED_STATE_WAIT_CONNECTION:
             neopixelWrite(RGB_BUILTIN, 24, 0, 0); // Red
             break;
-        case LED_STATE_CONNECTED:
-            neopixelWrite(RGB_BUILTIN, 0, 24, 0); // Green
+        case LED_STATE_CONNECTED: {
+            uint8_t r = (uint8_t)(((s_layer_color >> 16) & 0xFF) * 20 / 255);
+            uint8_t g = (uint8_t)(((s_layer_color >> 8) & 0xFF) * 20 / 255);
+            uint8_t b = (uint8_t)((s_layer_color & 0xFF) * 20 / 255);
+            neopixelWrite(RGB_BUILTIN, r, g, b);
             break;
+        }
         case LED_STATE_MIC_STREAMING:
             neopixelWrite(RGB_BUILTIN, 0, 0, 24); // Blue
             break;
@@ -65,7 +80,16 @@ void led_indicator_set(led_state_t state) {
 }
 
 void led_indicator_trigger_key(bool is_voice_key) {
+    s_layer_flash = false;
     s_flash_state = is_voice_key ? LED_STATE_MIC_KEY_PRESS : LED_STATE_HID_KEY_PRESS;
     s_flash_expire_time = millis() + 100; // Flash for 100ms
     s_is_flashing = true;
 }
+
+void led_indicator_set_layer_color(uint32_t rgb_color) {
+    s_layer_color = (rgb_color == 0) ? 0x00FF00 : rgb_color;
+    s_layer_flash = true;
+    s_flash_expire_time = millis() + 200; // 200ms flash on layer change
+    s_is_flashing = true;
+}
+

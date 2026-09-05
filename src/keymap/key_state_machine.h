@@ -18,7 +18,9 @@ typedef enum {
     ACTION_CONSUMER_HOLD,
     ACTION_CONSUMER_RELEASE,
     ACTION_VOICE_HOLD,          // Trigger voice recording + hold hotkey
-    ACTION_VOICE_RELEASE        // End voice recording + release hotkey
+    ACTION_VOICE_RELEASE,       // End voice recording + release hotkey
+    ACTION_SWITCH_LAYER,        // Switch to target layer (auto-toggles to 0 if current == target)
+    ACTION_TRANSPARENT          // Transparent / Inherit from Layer 0
 } key_action_type_t;
 
 typedef struct {
@@ -26,6 +28,7 @@ typedef struct {
     uint8_t           modifier;     // USB_MOD_*
     uint8_t           key_code;     // USB_KEY_*
     uint16_t          consumer_code;// USB_CONSUMER_*
+    uint8_t           target_layer; // Target layer (0 ~ 4) for ACTION_SWITCH_LAYER
 } key_action_t;
 
 typedef struct {
@@ -63,16 +66,36 @@ typedef struct {
     uint8_t  modifier;
     uint8_t  key_code;
     uint16_t consumer_code;
+    uint8_t  active_layer;
 } key_event_telemetry_t;
 
-#define MAX_KEY_BINDINGS 16
+#define MAX_KEY_BINDINGS   16
+#define MAX_LAYERS         5
+#define MAX_LAYER_NAME_LEN 24
+
+typedef enum {
+    LAYER_TYPE_PERSISTENT = 0,  // Stays in layer until another layer switch
+    LAYER_TYPE_ONESHOT    = 1,  // Reverts to Layer 0 after one key action fires
+    LAYER_TYPE_TIMEOUT    = 2   // Reverts to Layer 0 after timeout_sec of idle time
+} layer_type_t;
+
+typedef struct {
+    char          name[MAX_LAYER_NAME_LEN]; // e.g. "默认主层", "影音娱乐"
+    layer_type_t  type;                     // LAYER_TYPE_*
+    uint16_t      timeout_sec;              // 3 ~ 300s (for LAYER_TYPE_TIMEOUT)
+    uint32_t      led_color;                // RGB 0x00RRGGBB (e.g. 0x00FF00)
+    key_binding_t bindings[MAX_KEY_BINDINGS];
+    size_t        binding_count;
+} key_layer_t;
 
 typedef void (*key_output_callback_t)(const key_action_t *action);
 
 typedef struct {
-    key_binding_t         bindings[MAX_KEY_BINDINGS];
+    key_layer_t           layers[MAX_LAYERS];
+    size_t                layer_count;          // Always MAX_LAYERS (5)
+    uint8_t               active_layer;         // Currently active layer (0 ~ 4)
+    uint32_t              last_activity_time;   // Timestamp of last key action
     key_slot_state_t      states[MAX_KEY_BINDINGS];
-    size_t                binding_count;
     key_output_callback_t output_cb;
     key_event_telemetry_t last_telemetry;
 } key_mapper_engine_t;
@@ -83,17 +106,37 @@ typedef struct {
 void key_engine_init(key_mapper_engine_t *engine, key_output_callback_t cb);
 
 /**
- * @brief Load default factory key mapping table
+ * @brief Load default factory key mapping table for all layers
  */
 void key_engine_load_defaults(key_mapper_engine_t *engine);
 
 /**
- * @brief Set or update a key binding
+ * @brief Switch active layer with automatic toggle (if target == current -> revert to 0)
+ */
+void key_engine_switch_layer(key_mapper_engine_t *engine, uint8_t target_layer, uint32_t now_ms);
+
+/**
+ * @brief Get currently active layer index (0 ~ 4)
+ */
+uint8_t key_engine_get_active_layer(const key_mapper_engine_t *engine);
+
+/**
+ * @brief Set or update a key binding in a specific layer
+ */
+bool key_engine_set_layer_binding(key_mapper_engine_t *engine, uint8_t layer_idx, const key_binding_t *binding);
+
+/**
+ * @brief Get binding for a key code in a specific layer
+ */
+bool key_engine_get_layer_binding(const key_mapper_engine_t *engine, uint8_t layer_idx, uint8_t source_vk, key_binding_t *out_binding);
+
+/**
+ * @brief Set or update a key binding in Layer 0 (backward compatible)
  */
 bool key_engine_set_binding(key_mapper_engine_t *engine, const key_binding_t *binding);
 
 /**
- * @brief Get binding for a key code
+ * @brief Get binding for a key code in Layer 0 (backward compatible)
  */
 bool key_engine_get_binding(const key_mapper_engine_t *engine, uint8_t source_vk, key_binding_t *out_binding);
 
@@ -103,7 +146,7 @@ bool key_engine_get_binding(const key_mapper_engine_t *engine, uint8_t source_vk
 void key_engine_feed_key(key_mapper_engine_t *engine, uint8_t raw_key_code, bool is_pressed, uint32_t now_ms);
 
 /**
- * @brief Periodic timer tick to evaluate long press, double click timeout, and repeat timers
+ * @brief Periodic timer tick to evaluate long press, double click timeout, and layer idle timeout
  */
 void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms);
 
@@ -111,6 +154,7 @@ void key_engine_tick(key_mapper_engine_t *engine, uint32_t now_ms);
  * @brief Forcefully release all active pressed keys and reset state
  */
 void key_engine_release_all(key_mapper_engine_t *engine, uint32_t now_ms);
+
 
 #ifdef __cplusplus
 }

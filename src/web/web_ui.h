@@ -240,6 +240,54 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         .btn-danger { background: var(--accent-red); }
 
         .log-terminal { background: #000; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 12px; height: 380px; overflow-y: auto; color: #34d399; line-height: 1.6; }
+
+        /* Layer Navigation & Configuration */
+        .layer-nav-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; }
+        .layer-tab-card {
+            background: #0f172a;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .layer-tab-card:hover { border-color: #3b82f6; background: #151d2a; transform: translateY(-1px); }
+        .layer-tab-card.active { border-color: var(--accent-cyan) !important; background: rgba(6, 182, 212, 0.12) !important; box-shadow: 0 4px 16px rgba(6, 182, 212, 0.25); }
+        .layer-tab-card.hw-active { outline: 2px solid var(--accent-green); outline-offset: 1px; }
+        .layer-tab-header { display: flex; justify-content: space-between; align-items: center; }
+        .layer-tab-title { font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+        .layer-color-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px currentColor; }
+        .layer-live-badge { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); font-weight: 700; display: none; }
+        .layer-tab-card.hw-active .layer-live-badge { display: inline-block; }
+        .layer-tab-desc { font-size: 11px; color: var(--text-muted); }
+
+        .layer-config-box {
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .layer-config-item { display: flex; flex-direction: column; gap: 4px; }
+        .layer-config-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+        .layer-color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
+        .layer-color-swatch:hover { transform: scale(1.15); border-color: #fff; }
+
+        /* Remote Button Layer Override Highlight */
+        .layer-override-highlight {
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.9), inset 0 0 6px rgba(168, 85, 247, 0.7) !important;
+            border: 2px solid #c084fc !important;
+        }
     </style>
 </head>
 <body>
@@ -288,8 +336,72 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div id="tab-tester" class="tab-content active">
             <div class="card">
                 <div class="card-header">
-                    <span>🎮 真机 1:1 遥控器测试器（按压实体遥控器实时联动，点击按键即可修改按键映射）</span>
-                    <button class="btn btn-outline" style="font-size: 12px;" onclick="resetAllKeymaps()">恢复默认按键映射</button>
+                    <span>🎮 真机 1:1 遥控器多层级系统 (Multi-Layer Keymapper)</span>
+                    <button class="btn btn-outline" style="font-size: 12px;" onclick="resetAllKeymaps()">恢复出厂默认层级</button>
+                </div>
+                
+                <!-- 5 Layer Navigation Tabs -->
+                <div class="layer-nav-container" id="layer-nav-container">
+                    <!-- Injected by renderLayerTabs() -->
+                </div>
+
+                <!-- Layer Properties Card -->
+                <div class="layer-config-box" id="layer-config-box">
+                    <div class="layer-config-item" style="flex:1.2; min-width:160px;">
+                        <span class="layer-config-label">层级别名 (Layer Name)</span>
+                        <input type="text" id="layer-name-input" maxlength="20" placeholder="例如：影音娱乐" 
+                            style="background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; outline:none;"
+                            onchange="onLayerNameChange(this.value)">
+                    </div>
+
+                    <div class="layer-config-item" style="flex:1.4; min-width:190px;">
+                        <span class="layer-config-label">层级生命周期类型 (Lifecycle Type)</span>
+                        <select id="layer-type-select" 
+                            style="background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; outline:none;"
+                            onchange="onLayerTypeChange(this.value)">
+                            <option value="0">🔒 永久停留层 (Persistent - 需再次切层才退出)</option>
+                            <option value="1">⚡ 一次性瞬态层 (One-Shot - 触发一键后自动退回主层)</option>
+                            <option value="2">⏳ 超时自动返回层 (Timeout - 闲置超时自动退回主层)</option>
+                        </select>
+                    </div>
+
+                    <div class="layer-config-item" id="layer-timeout-wrapper" style="display:none; flex:1; min-width:150px;">
+                        <span class="layer-config-label">闲置回退超时 (秒: 3~300)</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="number" id="layer-timeout-input" min="3" max="300" value="15" 
+                                style="width:70px; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; color:#fff; font-size:13px; outline:none;"
+                                onchange="onLayerTimeoutChange(this.value)">
+                            <span style="font-size:12px; color:var(--text-muted);">秒后自动返回</span>
+                        </div>
+                    </div>
+
+                    <div class="layer-config-item" style="min-width:180px;">
+                        <span class="layer-config-label">板载指示灯颜色 (RGB Indicator)</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="color" id="layer-color-picker" value="#00ff00" 
+                                style="width:36px; height:32px; border:none; border-radius:6px; cursor:pointer; background:transparent;"
+                                onchange="onLayerColorChange(this.value)">
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <div class="layer-color-swatch" style="background:#00FF00;" title="绿色 (默认主层)" onclick="onLayerColorChange('#00FF00')"></div>
+                                <div class="layer-color-swatch" style="background:#06B6D4;" title="青色 (影音娱乐)" onclick="onLayerColorChange('#06B6D4')"></div>
+                                <div class="layer-color-swatch" style="background:#A855F7;" title="紫色 (游戏模式)" onclick="onLayerColorChange('#A855F7')"></div>
+                                <div class="layer-color-swatch" style="background:#EAB308;" title="黄色 (快捷宏层)" onclick="onLayerColorChange('#EAB308')"></div>
+                                <div class="layer-color-swatch" style="background:#FFFFFF;" title="白色 (办公演示)" onclick="onLayerColorChange('#FFFFFF')"></div>
+                                <div class="layer-color-swatch" style="background:#EF4444;" title="红色" onclick="onLayerColorChange('#EF4444')"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; align-items:flex-end;">
+                        <button class="btn btn-outline" id="btn-clear-layer" style="font-size:12px; display:none; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="clearLayerOverrides(currentEditingLayer)">
+                            🔄 清空本层覆盖 (恢复穿透)
+                        </button>
+                        <button class="btn" style="font-size:12px;" onclick="saveAllLayers()">💾 保存全部层级配置至 Flash</button>
+                    </div>
+                </div>
+
+                <div id="layer-status-tip" style="margin-bottom:16px; padding:10px 14px; background:rgba(6,182,212,0.08); border:1px dashed rgba(6,182,212,0.3); border-radius:8px; font-size:12px; color:var(--text-muted); line-height:1.5;">
+                    🏠 <b>默认主层 (Layer 0)</b>：所有上层（Layer 1~4）未配置的按键都会自动穿透继承此层的映射规则。
                 </div>
                 
                 <div class="remote-tester-container">
@@ -360,6 +472,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         <div class="event-field">
                             <span>注入键值 (Dispatched Key)</span>
                             <span id="live-act-val">None</span>
+                        </div>
+                        <div class="event-field">
+                            <span>当前运行层级 (Active Layer)</span>
+                            <span id="live-active-layer" style="color: var(--accent-cyan); font-weight: bold;">Layer 0 (默认主层)</span>
                         </div>
 
                         <div style="margin-top: 20px; padding: 12px; background: rgba(6,182,212,0.1); border-radius: 8px; border: 1px dashed rgba(6,182,212,0.3); font-size: 13px;">
@@ -545,12 +661,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div style="margin-bottom: 16px;">
                 <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600;" id="action-mode-label">🎯 触发动作模式 (Action Mode)</label>
                 
-                <!-- Grid for Normal Keys (3 modes) -->
-                <div id="mode-selector-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <!-- Grid for Normal Keys (up to 5 modes) -->
+                <div id="mode-selector-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px;">
                     <div class="mode-card" id="mode-card-2" onclick="selectActionMode(2)">
                         <div style="font-size:18px; margin-bottom:2px;">⚡</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">键盘直通</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">实时按住/连发</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">原生按住/连发</div>
                     </div>
                     <div class="mode-card" id="mode-card-1" onclick="selectActionMode(1)">
                         <div style="font-size:18px; margin-bottom:2px;">🎯</div>
@@ -562,6 +678,36 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">多媒体控制</div>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">音量/播放/睡眠</div>
                     </div>
+                    <div class="mode-card" id="mode-card-9" onclick="selectActionMode(9)">
+                        <div style="font-size:18px; margin-bottom:2px;">🎚️</div>
+                        <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">切换层级</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">切入层/自翻转</div>
+                    </div>
+                    <div class="mode-card" id="mode-card-10" onclick="selectActionMode(10)">
+                        <div style="font-size:18px; margin-bottom:2px;">🔗</div>
+                        <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">穿透继承</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">沿用主层配置</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer Switch Target Selector Box (Mode 9) -->
+            <div id="layer-switch-config-box" style="display:none; background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">🎚️ 选择目标切换层级 (Target Layer)</label>
+                <div id="layer-target-options" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px;">
+                    <!-- Rendered dynamically -->
+                </div>
+                <div style="margin-top:12px; padding:10px 14px; background:rgba(6,182,212,0.1); border-radius:8px; border:1px dashed rgba(6,182,212,0.3); font-size:12px; color:var(--text-muted); line-height:1.5;">
+                    💡 <b>智能自翻转双向切层 (Auto-Toggle)</b>：若遥控器当前已处于目标层，再次触发此动作将<b>自动翻转退回默认主层 (Layer 0)</b>！配合穿透继承，双击/长按同一个键即可自然进出，无需额外配置返回键。
+                </div>
+            </div>
+
+            <!-- Layer Transparent Mode Box (Mode 10) -->
+            <div id="layer-trans-config-box" style="display:none; background: rgba(59,130,246,0.1); border: 1px dashed #3b82f6; border-radius: 12px; padding: 16px; margin-bottom: 18px; text-align: center;">
+                <div style="font-size:24px; margin-bottom:4px;">🔗</div>
+                <div style="font-size:14px; font-weight:700; color:#93c5fd;">穿透继承模式 (Transparent Mode)</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                    本层不单独覆盖此按键触发动作，按下时将自动穿透并执行 <b>Layer 0 (默认主层)</b> 的对应配置。
                 </div>
             </div>
 
@@ -576,7 +722,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             </div>
 
             <!-- Advanced Manual Key Code & Quick Select Area (Always Expanded) -->
-            <div style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+            <div id="adv-config-container" style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
                 <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <span>🛠️ 快捷选择与键码微调</span>
                 </div>
@@ -692,11 +838,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
 
     <script>
-        let currentKeymap = { bindings: [] };
+        let currentKeymap = { active_layer: 0, layers: [] };
+        let currentEditingLayer = 0;
+        let activeHardwareLayer = 0;
+        let selectedTargetLayer = 1;
         let editingKey = 0;
-        let activeTrigger = 'click';
-        let currentActionState = { type: 1, mod: 0, key: 0, cons: 0, text: '无' };
+        let currentTriggerTab = 'click'; // 'click' | 'long' | 'double'
+        let currentSelectedMode = 2;     // 1: Tap, 2: Hold, 4: Consumer, 7: Voice, 9: Switch Layer, 10: Transparent
+        let editingBinding = null;
         let clearHighlightTimer = null;
+
+        const LAYER_ICONS = ['🏠', '🎬', '🎮', '⚡', '💼'];
 
         const KEY_NAMES = {
             0x66: '电源键 (Power)',
@@ -740,6 +892,53 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             'ArrowRight': 0x4F, 'ArrowLeft': 0x50, 'ArrowDown': 0x51, 'ArrowUp': 0x52
         };
 
+        function hexToHtmlColor(hexStr) {
+            if (!hexStr) return '#00ff00';
+            if (hexStr.startsWith('#')) return hexStr;
+            if (hexStr.startsWith('0x') || hexStr.startsWith('0X')) {
+                let h = hexStr.slice(2).padStart(6, '0');
+                return '#' + h;
+            }
+            let num = parseInt(hexStr);
+            if (!isNaN(num)) {
+                return '#' + (num & 0xFFFFFF).toString(16).padStart(6, '0');
+            }
+            return '#00ff00';
+        }
+
+        function htmlColorToHex(htmlColor) {
+            if (!htmlColor) return '0x00FF00';
+            let clean = htmlColor.replace('#', '');
+            return '0x' + clean.toUpperCase().padStart(6, '0');
+        }
+
+        function normalizeKeymapConfig() {
+            if (!currentKeymap) currentKeymap = {};
+            if (!currentKeymap.layers || !Array.isArray(currentKeymap.layers) || currentKeymap.layers.length === 0) {
+                const legacyBindings = currentKeymap.bindings || [];
+                currentKeymap.layers = [
+                    { id: 0, name: '默认主层', type: 0, timeout: 0, color: '0x00FF00', bindings: legacyBindings },
+                    { id: 1, name: '影音娱乐', type: 2, timeout: 15, color: '0x06B6D4', bindings: [] },
+                    { id: 2, name: '游戏模式', type: 0, timeout: 0, color: '0xA855F7', bindings: [] },
+                    { id: 3, name: '快捷宏层', type: 1, timeout: 0, color: '0xEAB308', bindings: [] },
+                    { id: 4, name: '办公演示', type: 0, timeout: 0, color: '0xFFFFFF', bindings: [] }
+                ];
+            }
+            while (currentKeymap.layers.length < 5) {
+                const id = currentKeymap.layers.length;
+                const defaultNames = ['默认主层', '影音娱乐', '游戏模式', '快捷宏层', '办公演示'];
+                const defaultColors = ['0x00FF00', '0x06B6D4', '0xA855F7', '0xEAB308', '0xFFFFFF'];
+                currentKeymap.layers.push({
+                    id: id,
+                    name: defaultNames[id] || (`Layer ${id}`),
+                    type: (id === 1 ? 2 : (id === 3 ? 1 : 0)),
+                    timeout: (id === 1 ? 15 : 0),
+                    color: defaultColors[id] || '0x00FF00',
+                    bindings: []
+                });
+            }
+        }
+
         function switchTab(id) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -779,6 +978,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 const res = await fetch('/api/keymap/telemetry');
                 const t = await res.json();
 
+                if (t.active_layer !== undefined && t.active_layer !== activeHardwareLayer) {
+                    activeHardwareLayer = t.active_layer;
+                    renderLayerTabs();
+                }
+
+                const curLayerObj = (currentKeymap && currentKeymap.layers) ? currentKeymap.layers[activeHardwareLayer] : null;
+                const layerName = curLayerObj ? curLayerObj.name : `Layer ${activeHardwareLayer}`;
+                const layerColor = curLayerObj ? hexToHtmlColor(curLayerObj.color) : 'var(--accent-cyan)';
+                const activeEl = document.getElementById('live-active-layer');
+                if (activeEl) {
+                    activeEl.innerText = `Layer ${activeHardwareLayer} (${layerName})`;
+                    activeEl.style.color = layerColor;
+                }
+
                 if (t.source_vk && t.source_vk !== 0) {
                     const vk = t.source_vk;
                     const hexCode = '0x' + vk.toString(16).toUpperCase().padStart(2, '0');
@@ -791,7 +1004,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     document.getElementById('live-act-type').innerText = `TYPE_${t.action_type || 0}`;
                     document.getElementById('live-act-val').innerText = `Key: 0x${(t.key_code||0).toString(16)} Cons: 0x${(t.consumer_code||0).toString(16)}`;
 
-                    // Find DOM element
                     let targetHex = hexCode;
                     if (vk === 0xFF) targetHex = '0x66';
                     if (vk === 0x4A) targetHex = '0x24';
@@ -812,10 +1024,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             } catch(e){}
         }
 
-        let currentTriggerTab = 'click'; // 'click' | 'long' | 'double'
-        let currentSelectedMode = 2;     // 1: Tap, 2: Hold, 4: Consumer, 7: Voice
-        let editingBinding = null;
-
         const FACTORY_KEYMAP = {
             0x66: { source_vk: 0x66, has_click: true, click_type: 1, click_mod: 4, click_key: 43, click_cons: 0, has_long: true, long_ms: 600, long_type: 4, long_mod: 0, long_key: 0, long_cons: 0x0032, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
             0x04: { source_vk: 0x04, has_click: true, click_type: 7, click_mod: 64, click_key: 54, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 },
@@ -832,8 +1040,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             0xC0: { source_vk: 0xC0, has_click: true, click_type: 1, click_mod: 0, click_key: 65, click_cons: 0, has_long: false, long_ms: 600, long_type: 0, long_mod: 0, long_key: 0, long_cons: 0, has_double: false, double_ms: 250, double_type: 0, double_mod: 0, double_key: 0, double_cons: 0 }
         };
 
-        function getActionSummaryText(type, mod, key, cons) {
+        function getActionSummaryText(type, mod, key, cons, target_layer) {
+            if (type === 10) return '🔗 [继承默认层]';
+            if (type === 9) {
+                const tgt = target_layer || 0;
+                let tgtName = `Layer ${tgt}`;
+                if (currentKeymap && currentKeymap.layers && currentKeymap.layers[tgt]) {
+                    tgtName = currentKeymap.layers[tgt].name || tgtName;
+                }
+                return `🎚️ [切入: ${tgtName} (自翻转)]`;
+            }
+            if (type === 7) return '🎙️ [语音对讲录音]';
             if (type === 0 || (!key && !cons && !mod)) return '未映射';
+
             let parts = [];
             if (mod & 0x01) parts.push('Ctrl');
             if (mod & 0x04) parts.push('Alt');
@@ -870,24 +1089,241 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             return parts.join('+');
         }
 
+        function renderLayerTabs() {
+            normalizeKeymapConfig();
+            const container = document.getElementById('layer-nav-container');
+            if (!container) return;
+
+            const typeNames = ['🔒 永久层', '⚡ 一次性层', '⏳ 超时返回'];
+
+            let html = '';
+            currentKeymap.layers.forEach((l, idx) => {
+                const isActive = (idx === currentEditingLayer);
+                const isHwActive = (idx === activeHardwareLayer);
+                const htmlColor = hexToHtmlColor(l.color);
+                const icon = LAYER_ICONS[idx] || '📁';
+                const typeText = (idx === 0) ? '🔒 默认基础层' : (l.type === 2 ? `⏳ ${l.timeout || 15}s 超时` : (typeNames[l.type] || ''));
+                const overrideCount = (idx === 0) ? l.bindings.length : (l.bindings ? l.bindings.filter(b => (b.has_click && b.click_type !== 10) || (b.has_long && b.long_type !== 10) || (b.has_double && b.double_type !== 10)).length : 0);
+                const countBadge = (idx === 0) ? `${overrideCount} 基础键` : (overrideCount > 0 ? `★ ${overrideCount} 键覆盖` : `🔗 全穿透`);
+
+                html += `
+                <div class="layer-tab-card ${isActive ? 'active' : ''} ${isHwActive ? 'hw-active' : ''}" onclick="switchEditingLayer(${idx})">
+                    <div class="layer-tab-header">
+                        <span class="layer-tab-title">
+                            <span class="layer-color-dot" style="background-color:${htmlColor}; color:${htmlColor};"></span>
+                            <span>${icon} Layer ${idx}</span>
+                        </span>
+                        <span class="layer-live-badge">● 运行中</span>
+                    </div>
+                    <div style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${l.name || ('Layer ' + idx)}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                        <span class="layer-tab-desc">${typeText}</span>
+                        <span style="font-size:10px; color:${overrideCount > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)'}; font-weight:600;">${countBadge}</span>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderLayerCard() {
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[currentEditingLayer];
+            if (!layer) return;
+
+            const nameInput = document.getElementById('layer-name-input');
+            const typeSelect = document.getElementById('layer-type-select');
+            const timeoutWrapper = document.getElementById('layer-timeout-wrapper');
+            const timeoutInput = document.getElementById('layer-timeout-input');
+            const colorPicker = document.getElementById('layer-color-picker');
+            const clearBtn = document.getElementById('btn-clear-layer');
+            const tipEl = document.getElementById('layer-status-tip');
+
+            if (nameInput) {
+                nameInput.value = layer.name || `Layer ${currentEditingLayer}`;
+            }
+            if (typeSelect) {
+                typeSelect.value = layer.type || 0;
+                typeSelect.disabled = (currentEditingLayer === 0);
+            }
+            if (timeoutWrapper && timeoutInput) {
+                timeoutInput.value = layer.timeout || 15;
+                timeoutWrapper.style.display = (currentEditingLayer !== 0 && layer.type === 2) ? 'flex' : 'none';
+            }
+            if (colorPicker) {
+                colorPicker.value = hexToHtmlColor(layer.color);
+            }
+            if (clearBtn) {
+                clearBtn.style.display = (currentEditingLayer === 0) ? 'none' : 'inline-block';
+            }
+            if (tipEl) {
+                if (currentEditingLayer === 0) {
+                    tipEl.innerHTML = '🏠 <b>默认主层 (Layer 0)</b>：所有上层（Layer 1~4）未单独配置的按键都会自动穿透继承此层的映射规则。';
+                } else {
+                    tipEl.innerHTML = `✨ <b>当前正在编辑【Layer ${currentEditingLayer} : ${layer.name}】</b>：带有紫色外发光边框的按键为本层独立覆盖按键；其余普通按键会自动穿透继承 Layer 0。`;
+                }
+            }
+        }
+
+        function switchEditingLayer(idx) {
+            if (idx < 0 || idx >= 5) return;
+            currentEditingLayer = idx;
+            renderLayerTabs();
+            renderLayerCard();
+            updateRemoteVisualTooltips();
+        }
+
+        function onLayerNameChange(val) {
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[currentEditingLayer];
+            if (!layer) return;
+            layer.name = val.trim() || `Layer ${currentEditingLayer}`;
+            renderLayerTabs();
+        }
+
+        function onLayerTypeChange(val) {
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[currentEditingLayer];
+            if (!layer) return;
+            layer.type = parseInt(val);
+            const timeoutWrapper = document.getElementById('layer-timeout-wrapper');
+            if (timeoutWrapper) {
+                timeoutWrapper.style.display = (layer.type === 2 && currentEditingLayer !== 0) ? 'flex' : 'none';
+            }
+            renderLayerTabs();
+        }
+
+        function onLayerTimeoutChange(val) {
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[currentEditingLayer];
+            if (!layer) return;
+            let sec = parseInt(val) || 15;
+            if (sec < 3) sec = 3;
+            if (sec > 300) sec = 300;
+            layer.timeout = sec;
+            const input = document.getElementById('layer-timeout-input');
+            if (input) input.value = sec;
+            renderLayerTabs();
+        }
+
+        function onLayerColorChange(hexColor) {
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[currentEditingLayer];
+            if (!layer) return;
+            layer.color = htmlColorToHex(hexColor);
+            const picker = document.getElementById('layer-color-picker');
+            if (picker) picker.value = hexColor;
+            renderLayerTabs();
+        }
+
+        async function saveAllLayers() {
+            const ok = await saveKeymapToServer();
+            if (ok) {
+                showToast('所有 5 个层级配置已成功保存写入 ESP32 Flash！');
+                renderLayerTabs();
+                renderLayerCard();
+                updateRemoteVisualTooltips();
+            }
+        }
+
+        async function clearLayerOverrides(layerIdx) {
+            if (layerIdx === 0) return;
+            normalizeKeymapConfig();
+            const layer = currentKeymap.layers[layerIdx];
+            if (!layer) return;
+            if (!confirm(`确定要清空【${layer.name}】的所有按键覆盖吗？\n清空后该层所有按键将 100% 穿透继承默认主层 (Layer 0)。`)) return;
+            layer.bindings = [];
+            const ok = await saveKeymapToServer();
+            if (ok) {
+                showToast(`【${layer.name}】已恢复全量穿透继承！`);
+                renderLayerTabs();
+                renderLayerCard();
+                updateRemoteVisualTooltips();
+            }
+        }
+
+        async function saveKeymapToServer() {
+            try {
+                const res = await fetch('/api/keymap/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentKeymap)
+                });
+                if (res.ok) {
+                    return true;
+                } else {
+                    showToast('保存到硬件失败', true);
+                    return false;
+                }
+            } catch(e) {
+                showToast('保存请求出错: ' + e.message, true);
+                return false;
+            }
+        }
+
         function updateRemoteVisualTooltips() {
-            if (!currentKeymap || !currentKeymap.bindings) return;
+            normalizeKeymapConfig();
             const vkList = [0x66, 0x04, 0x52, 0x51, 0x50, 0x4F, 0x28, 0xF1, 0x24, 0x5D, 0x80, 0x81, 0xC0];
+            const curLayer = currentKeymap.layers[currentEditingLayer] || currentKeymap.layers[0];
+            const layer0 = currentKeymap.layers[0];
+
             vkList.forEach(vk => {
                 const hex = '0x' + vk.toString(16).toUpperCase().padStart(2, '0');
                 const el = document.getElementById(`btn-${hex}`);
                 if (!el) return;
-                const b = currentKeymap.bindings.find(x => x.source_vk === vk) || FACTORY_KEYMAP[vk];
-                if (b) {
-                    let desc = `【${KEY_NAMES[vk] || hex}】\n单击: ${getActionSummaryText(b.click_type, b.click_mod, b.click_key, b.click_cons)}`;
-                    if (b.has_long) {
-                        desc += `\n长按(${b.long_ms||600}ms): ${getActionSummaryText(b.long_type, b.long_mod, b.long_key, b.long_cons)}`;
-                    }
-                    if (b.has_double) {
-                        desc += `\n双击(${b.double_ms||250}ms): ${getActionSummaryText(b.double_type, b.double_mod, b.double_key, b.double_cons)}`;
-                    }
-                    el.title = desc;
+
+                const b0 = (layer0.bindings && layer0.bindings.find(x => x.source_vk === vk)) || FACTORY_KEYMAP[vk];
+                let bCur = (curLayer.bindings && curLayer.bindings.find(x => x.source_vk === vk)) || null;
+
+                const isOverride = (currentEditingLayer > 0 && bCur && (
+                    (bCur.has_click && bCur.click_type !== 10) ||
+                    (bCur.has_long && bCur.long_type !== 10) ||
+                    (bCur.has_double && bCur.double_type !== 10)
+                ));
+
+                if (isOverride) {
+                    el.classList.add('layer-override-highlight');
+                } else {
+                    el.classList.remove('layer-override-highlight');
                 }
+
+                const effClickType = (bCur && bCur.has_click && bCur.click_type !== 10) ? bCur.click_type : (b0 ? b0.click_type : 0);
+                const effClickMod = (bCur && bCur.has_click && bCur.click_type !== 10) ? bCur.click_mod : (b0 ? b0.click_mod : 0);
+                const effClickKey = (bCur && bCur.has_click && bCur.click_type !== 10) ? bCur.click_key : (b0 ? b0.click_key : 0);
+                const effClickCons = (bCur && bCur.has_click && bCur.click_type !== 10) ? bCur.click_cons : (b0 ? b0.click_cons : 0);
+                const effClickLayer = (bCur && bCur.has_click && bCur.click_type !== 10) ? bCur.click_layer : (b0 ? b0.click_layer : 0);
+
+                let desc = `【${KEY_NAMES[vk] || hex}】`;
+                if (currentEditingLayer > 0) {
+                    desc += isOverride ? ` (★ Layer ${currentEditingLayer} 独立覆盖)` : ` (🔗 继承 Layer 0 默认层)`;
+                }
+
+                desc += `\n单击: ${getActionSummaryText(effClickType, effClickMod, effClickKey, effClickCons, effClickLayer)}`;
+
+                const hasLong = (bCur && bCur.has_long && bCur.long_type !== 10) ? true : (b0 ? b0.has_long : false);
+                if (hasLong) {
+                    const lType = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_type : b0.long_type;
+                    const lMod = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_mod : b0.long_mod;
+                    const lKey = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_key : b0.long_key;
+                    const lCons = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_cons : b0.long_cons;
+                    const lLayer = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_layer : b0.long_layer;
+                    const lMs = (bCur && bCur.has_long && bCur.long_type !== 10) ? bCur.long_ms : b0.long_ms;
+                    desc += `\n长按(${lMs || 600}ms): ${getActionSummaryText(lType, lMod, lKey, lCons, lLayer)}`;
+                }
+
+                const hasDouble = (bCur && bCur.has_double && bCur.double_type !== 10) ? true : (b0 ? b0.has_double : false);
+                if (hasDouble) {
+                    const dType = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_type : b0.double_type;
+                    const dMod = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_mod : b0.double_mod;
+                    const dKey = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_key : b0.double_key;
+                    const dCons = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_cons : b0.double_cons;
+                    const dLayer = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_layer : b0.double_layer;
+                    const dMs = (bCur && bCur.has_double && bCur.double_type !== 10) ? bCur.double_ms : b0.double_ms;
+                    desc += `\n双击(${dMs || 250}ms): ${getActionSummaryText(dType, dMod, dKey, dCons, dLayer)}`;
+                }
+
+                el.title = desc;
             });
         }
 
@@ -895,6 +1331,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             try {
                 const res = await fetch('/api/keymap');
                 currentKeymap = await res.json();
+                normalizeKeymapConfig();
+                renderLayerTabs();
+                renderLayerCard();
                 updateRemoteVisualTooltips();
             } catch(e){}
         }
@@ -912,50 +1351,78 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             return parseInt(val, 10) || 0;
         }
 
+        function renderTargetLayerButtons() {
+            const container = document.getElementById('layer-target-options');
+            if (!container) return;
+            normalizeKeymapConfig();
+            let html = '';
+            currentKeymap.layers.forEach((l, idx) => {
+                const isSel = (idx === selectedTargetLayer);
+                const htmlColor = hexToHtmlColor(l.color);
+                const icon = LAYER_ICONS[idx] || '📁';
+                html += `
+                <button type="button" class="target-layer-btn" data-layer="${idx}" 
+                    style="padding:8px 6px; border-radius:10px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.15s; background:${isSel ? 'rgba(6,182,212,0.2)' : '#151d2a'}; border:2px solid ${isSel ? 'var(--accent-cyan)' : 'var(--border-color)'}; color:${isSel ? 'var(--accent-cyan)' : '#fff'}; display:flex; flex-direction:column; align-items:center; gap:2px;"
+                    onclick="selectTargetLayer(${idx})">
+                    <span style="font-size:16px;">${icon}</span>
+                    <span>Layer ${idx}</span>
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:normal; max-width:70px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${l.name || ''}</span>
+                </button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function selectTargetLayer(layerIdx) {
+            selectedTargetLayer = layerIdx;
+            renderTargetLayerButtons();
+            renderTriggerView(9, 0, 0, 0);
+        }
+
         function saveActiveTabToBinding() {
             if (!editingBinding) return;
             const mod = parseHexOrDec(document.getElementById('adv-mod').value);
             const code = parseHexOrDec(document.getElementById('adv-code').value);
             const mode = currentSelectedMode;
 
-            // Always sync Long Press enable switch & timing slider
             const longToggle = document.getElementById('toggle-enable-long');
-            if (longToggle) {
-                editingBinding.has_long = longToggle.checked;
-            }
+            if (longToggle) editingBinding.has_long = longToggle.checked;
             const longSlider = document.getElementById('slider-long-ms');
-            if (longSlider) {
-                editingBinding.long_ms = parseInt(longSlider.value) || 600;
-            }
+            if (longSlider) editingBinding.long_ms = parseInt(longSlider.value) || 600;
 
-            // Always sync Double Click enable switch & timing slider
             const doubleToggle = document.getElementById('toggle-enable-double');
-            if (doubleToggle) {
-                editingBinding.has_double = doubleToggle.checked;
-            }
+            if (doubleToggle) editingBinding.has_double = doubleToggle.checked;
             const doubleSlider = document.getElementById('slider-double-ms');
-            if (doubleSlider) {
-                editingBinding.double_ms = parseInt(doubleSlider.value) || 250;
-            }
+            if (doubleSlider) editingBinding.double_ms = parseInt(doubleSlider.value) || 250;
 
             if (currentTriggerTab === 'click') {
                 editingBinding.click_type = mode;
-                if (mode === 4) {
+                if (mode === 9) {
+                    editingBinding.click_layer = selectedTargetLayer;
+                    editingBinding.click_key = 0; editingBinding.click_mod = 0; editingBinding.click_cons = 0;
+                    editingBinding.has_click = true;
+                } else if (mode === 10) {
+                    editingBinding.click_key = 0; editingBinding.click_mod = 0; editingBinding.click_cons = 0;
+                    editingBinding.has_click = true;
+                } else if (mode === 4) {
                     editingBinding.click_cons = code;
-                    editingBinding.click_key = 0;
-                    editingBinding.click_mod = 0;
+                    editingBinding.click_key = 0; editingBinding.click_mod = 0;
+                    editingBinding.has_click = (code > 0);
                 } else {
                     editingBinding.click_key = code;
                     editingBinding.click_mod = mod;
                     editingBinding.click_cons = 0;
+                    editingBinding.has_click = (mode !== 0 && (code > 0 || mod > 0));
                 }
-                editingBinding.has_click = (mode !== 0 && (code > 0 || mod > 0));
             } else if (currentTriggerTab === 'long') {
                 editingBinding.long_type = mode;
-                if (mode === 4) {
+                if (mode === 9) {
+                    editingBinding.long_layer = selectedTargetLayer;
+                    editingBinding.long_key = 0; editingBinding.long_mod = 0; editingBinding.long_cons = 0;
+                } else if (mode === 10) {
+                    editingBinding.long_key = 0; editingBinding.long_mod = 0; editingBinding.long_cons = 0;
+                } else if (mode === 4) {
                     editingBinding.long_cons = code;
-                    editingBinding.long_key = 0;
-                    editingBinding.long_mod = 0;
+                    editingBinding.long_key = 0; editingBinding.long_mod = 0;
                 } else {
                     editingBinding.long_key = code;
                     editingBinding.long_mod = mod;
@@ -963,10 +1430,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 }
             } else if (currentTriggerTab === 'double') {
                 editingBinding.double_type = mode;
-                if (mode === 4) {
+                if (mode === 9) {
+                    editingBinding.double_layer = selectedTargetLayer;
+                    editingBinding.double_key = 0; editingBinding.double_mod = 0; editingBinding.double_cons = 0;
+                } else if (mode === 10) {
+                    editingBinding.double_key = 0; editingBinding.double_mod = 0; editingBinding.double_cons = 0;
+                } else if (mode === 4) {
                     editingBinding.double_cons = code;
-                    editingBinding.double_key = 0;
-                    editingBinding.double_mod = 0;
+                    editingBinding.double_key = 0; editingBinding.double_mod = 0;
                 } else {
                     editingBinding.double_key = code;
                     editingBinding.double_mod = mod;
@@ -984,16 +1455,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const doubleHeader = document.getElementById('double-click-header');
             const actionLabel = document.getElementById('action-mode-label');
 
-            let mode = 2, mod = 0, key = 0, cons = 0;
+            let mode = 2, mod = 0, key = 0, cons = 0, target_layer = 1;
 
             if (tab === 'click') {
                 longHeader.style.display = 'none';
                 doubleHeader.style.display = 'none';
                 actionLabel.innerText = '🎯 单击触发动作模式 (Click Action Mode)';
-                mode = editingBinding.click_type || 2;
+                mode = editingBinding.click_type !== undefined ? editingBinding.click_type : 2;
                 mod = editingBinding.click_mod || 0;
                 key = editingBinding.click_key || 0;
                 cons = editingBinding.click_cons || 0;
+                target_layer = editingBinding.click_layer !== undefined ? editingBinding.click_layer : (currentEditingLayer === 1 ? 0 : 1);
             } else if (tab === 'long') {
                 longHeader.style.display = 'block';
                 doubleHeader.style.display = 'none';
@@ -1001,10 +1473,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('toggle-enable-long').checked = !!editingBinding.has_long;
                 document.getElementById('slider-long-ms').value = editingBinding.long_ms || 600;
                 document.getElementById('label-long-ms').innerText = `${editingBinding.long_ms || 600}ms`;
-                mode = editingBinding.long_type || 1;
+                mode = editingBinding.long_type !== undefined ? editingBinding.long_type : 1;
                 mod = editingBinding.long_mod || 0;
                 key = editingBinding.long_key || 0;
                 cons = editingBinding.long_cons || 0;
+                target_layer = editingBinding.long_layer !== undefined ? editingBinding.long_layer : (currentEditingLayer === 1 ? 0 : 1);
             } else if (tab === 'double') {
                 longHeader.style.display = 'none';
                 doubleHeader.style.display = 'block';
@@ -1012,18 +1485,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('toggle-enable-double').checked = !!editingBinding.has_double;
                 document.getElementById('slider-double-ms').value = editingBinding.double_ms || 250;
                 document.getElementById('label-double-ms').innerText = `${editingBinding.double_ms || 250}ms`;
-                mode = editingBinding.double_type || 1;
+                mode = editingBinding.double_type !== undefined ? editingBinding.double_type : 1;
                 mod = editingBinding.double_mod || 0;
                 key = editingBinding.double_key || 0;
                 cons = editingBinding.double_cons || 0;
+                target_layer = editingBinding.double_layer !== undefined ? editingBinding.double_layer : (currentEditingLayer === 1 ? 0 : 1);
             }
 
-            if (cons > 0) mode = 4;
-            else if (mode !== 1 && mode !== 2 && mode !== 4 && mode !== 7) mode = 2;
-
+            selectedTargetLayer = target_layer;
+            selectActionMode(mode);
             renderTriggerView(mode, mod, key, cons);
+            renderTargetLayerButtons();
             document.getElementById('quick-key-select').value = '';
-            startKeyboardRecording();
+            if (mode === 1 || mode === 2 || mode === 7) {
+                startKeyboardRecording();
+            }
         }
 
         function switchTriggerTab(tab) {
@@ -1036,42 +1512,76 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             currentSelectedMode = mode;
             const inst = document.getElementById('recorder-instruction');
             const quickSelect = document.getElementById('quick-key-select');
+            const recorderBox = document.getElementById('key-recorder-box');
+            const advContainer = document.getElementById('adv-config-container');
+            const layerBox = document.getElementById('layer-switch-config-box');
+            const transBox = document.getElementById('layer-trans-config-box');
 
-            let curMod = parseInt(document.getElementById('adv-mod').value) || 0;
-            let curCode = parseInt(document.getElementById('adv-code').value) || 0;
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+            const card = document.getElementById(`mode-card-${mode}`);
+            if (card) card.classList.add('selected');
 
-            if (mode === 4) {
-                inst.innerHTML = '🔊 <b>多媒体控制模式</b>：请在下方【快捷选择与键码微调】下拉框中选择具体的控制功能';
-                let curCons = curCode >= 500 ? curCode : 545;
-                renderTriggerView(4, 0, 0, curCons);
-                quickSelect.value = `c:0:${curCons}`;
-            } else if (mode === 1) {
-                inst.innerHTML = '🎯 <b>单次点按模式</b>：按下遥控器发送一次快捷键（敲击键盘直接录制，如 Win+D, Alt+Tab, F5 等）';
-                let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x28;
-                renderTriggerView(1, curMod, curKey, 0);
-                startKeyboardRecording();
-            } else if (mode === 2) {
-                inst.innerHTML = '⚡ <b>键盘直通模式</b>：按住遥控器电脑键盘持续按住，支持系统级原生连发（敲击键盘直接录制，如 Space, Enter, 方向键等）';
-                let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x2C;
-                renderTriggerView(2, curMod, curKey, 0);
-                startKeyboardRecording();
-            } else if (mode === 7) {
-                inst.innerHTML = '🎙️ <b>语音输入法快捷键</b>：敲击键盘录制录音时保持按下的快捷键（如 Alt+, 微信输入法 或 Win+H 微软听写）';
-                let curKey = (curCode > 0 && curCode < 500) ? curCode : 54;
-                renderTriggerView(7, curMod || 64, curKey, 0);
-                startKeyboardRecording();
+            if (mode === 9) {
+                if (recorderBox) recorderBox.style.display = 'none';
+                if (advContainer) advContainer.style.display = 'none';
+                if (layerBox) layerBox.style.display = 'block';
+                if (transBox) transBox.style.display = 'none';
+                renderTargetLayerButtons();
+            } else if (mode === 10) {
+                if (recorderBox) recorderBox.style.display = 'none';
+                if (advContainer) advContainer.style.display = 'none';
+                if (layerBox) layerBox.style.display = 'none';
+                if (transBox) transBox.style.display = 'block';
+            } else {
+                if (recorderBox) recorderBox.style.display = 'block';
+                if (advContainer) advContainer.style.display = 'block';
+                if (layerBox) layerBox.style.display = 'none';
+                if (transBox) transBox.style.display = 'none';
+
+                let curMod = parseInt(document.getElementById('adv-mod').value) || 0;
+                let curCode = parseInt(document.getElementById('adv-code').value) || 0;
+
+                if (mode === 4) {
+                    if (inst) inst.innerHTML = '🔊 <b>多媒体控制模式</b>：请在下方【快捷选择与键码微调】下拉框中选择具体的控制功能';
+                    let curCons = curCode >= 500 ? curCode : 545;
+                    renderTriggerView(4, 0, 0, curCons);
+                    if (quickSelect) quickSelect.value = `c:0:${curCons}`;
+                } else if (mode === 1) {
+                    if (inst) inst.innerHTML = '🎯 <b>单次点按模式</b>：按下遥控器发送一次快捷键（敲击键盘直接录制，如 Win+D, Alt+Tab, F5 等）';
+                    let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x28;
+                    renderTriggerView(1, curMod, curKey, 0);
+                    startKeyboardRecording();
+                } else if (mode === 2) {
+                    if (inst) inst.innerHTML = '⚡ <b>键盘直通模式</b>：按住遥控器电脑键盘持续按住，支持系统级原生连发（敲击键盘直接录制，如 Space, Enter, 方向键等）';
+                    let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x2C;
+                    renderTriggerView(2, curMod, curKey, 0);
+                    startKeyboardRecording();
+                } else if (mode === 7) {
+                    if (inst) inst.innerHTML = '🎙️ <b>语音输入法快捷键</b>：敲击键盘录制录音时保持按下的快捷键（如 Alt+, 微信输入法 或 Win+H 微软听写）';
+                    let curKey = (curCode > 0 && curCode < 500) ? curCode : 54;
+                    renderTriggerView(7, curMod || 64, curKey, 0);
+                    startKeyboardRecording();
+                }
             }
         }
 
         function renderTriggerView(type, mod, key, cons) {
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
-            if (isVoice) {
+            if (isVoice && currentEditingLayer === 0) {
                 type = 7;
                 cons = 0;
             } else if (type === 4 || cons > 0) {
                 type = 4;
                 key = 0;
                 mod = 0;
+            } else if (type === 9) {
+                key = 0;
+                mod = 0;
+                cons = 0;
+            } else if (type === 10) {
+                key = 0;
+                mod = 0;
+                cons = 0;
             }
 
             currentSelectedMode = type;
@@ -1084,6 +1594,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             document.getElementById('adv-code').value = '0x' + codeVal.toString(16).toUpperCase().padStart(codeVal > 255 ? 4 : 2, '0');
 
             const display = document.getElementById('recorded-badge-display');
+            if (!display) return;
+
+            if (type === 9) {
+                const tgt = selectedTargetLayer || 0;
+                let tgtName = `Layer ${tgt}`;
+                if (currentKeymap && currentKeymap.layers && currentKeymap.layers[tgt]) {
+                    tgtName = currentKeymap.layers[tgt].name || tgtName;
+                }
+                display.innerHTML = `<span class="kbd-chip" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">🎚️ 切入 Layer ${tgt} (${tgtName}) [自翻转]</span>`;
+                return;
+            }
+
+            if (type === 10) {
+                display.innerHTML = `<span class="kbd-chip" style="border-color:#93c5fd; color:#93c5fd;">🔗 穿透继承 Layer 0 (默认主层)</span>`;
+                return;
+            }
+
             if (type === 0 || (!key && !cons && !mod)) {
                 display.innerHTML = '<span style="color: var(--text-muted); font-size: 15px; font-weight: normal;">未设置（点击此处敲键盘录制，或从下方快速选择）</span>';
                 return;
@@ -1150,13 +1677,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         async function openRemapModal(keyVk, keyName) {
             editingKey = keyVk;
+            normalizeKeymapConfig();
+            const curLayer = currentKeymap.layers[currentEditingLayer];
             const isVoice = (keyVk === 0x04 || keyVk === 0x3E);
-
-            // Fetch fresh keymap from server
-            try {
-                const res = await fetch('/api/keymap');
-                currentKeymap = await res.json();
-            } catch(e){}
 
             let searchVk = keyVk;
             if (keyVk === 0xFF) searchVk = 0x66;
@@ -1165,20 +1688,32 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (keyVk === 0x35) searchVk = 0xC0;
             if (keyVk === 0x3E) searchVk = 0x04;
 
-            const found = currentKeymap.bindings && currentKeymap.bindings.find(x => x.source_vk === searchVk);
+            const found = curLayer.bindings && curLayer.bindings.find(x => x.source_vk === searchVk);
             if (found) {
                 editingBinding = JSON.parse(JSON.stringify(found));
-            } else if (FACTORY_KEYMAP[searchVk]) {
+            } else if (currentEditingLayer === 0 && FACTORY_KEYMAP[searchVk]) {
                 editingBinding = JSON.parse(JSON.stringify(FACTORY_KEYMAP[searchVk]));
+            } else if (currentEditingLayer > 0) {
+                // Default to transparent on Layer 1~4
+                editingBinding = {
+                    source_vk: searchVk,
+                    has_click: true, click_type: 10, click_mod: 0, click_key: 0, click_cons: 0, click_layer: 0,
+                    has_long: false, long_ms: 600, long_type: 10, long_mod: 0, long_key: 0, long_cons: 0, long_layer: 0,
+                    has_double: false, double_ms: 250, double_type: 10, double_mod: 0, double_key: 0, double_cons: 0, double_layer: 0
+                };
             } else {
                 editingBinding = {
                     source_vk: searchVk,
-                    has_click: true,
-                    click_type: isVoice ? 7 : 2,
-                    click_mod: 0, click_key: 0, click_cons: 0,
-                    has_long: false, long_ms: 600, long_type: 1, long_mod: 0, long_key: 0, long_cons: 0,
-                    has_double: false, double_ms: 250, double_type: 1, double_mod: 0, double_key: 0, double_cons: 0
+                    has_click: true, click_type: 2, click_mod: 0, click_key: 0, click_cons: 0, click_layer: 0,
+                    has_long: false, long_ms: 600, long_type: 1, long_mod: 0, long_key: 0, long_cons: 0, long_layer: 0,
+                    has_double: false, double_ms: 250, double_type: 1, double_mod: 0, double_key: 0, double_cons: 0, double_layer: 0
                 };
+            }
+
+            // Show / hide transparent mode card based on whether this is Layer 0
+            const transCard = document.getElementById('mode-card-10');
+            if (transCard) {
+                transCard.style.display = (currentEditingLayer === 0) ? 'none' : 'block';
             }
 
             // Sync switches and sliders before tab loads
@@ -1196,20 +1731,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const doubleLabel = document.getElementById('label-double-ms');
             if (doubleLabel) doubleLabel.innerText = `${editingBinding.double_ms || 250}ms`;
 
-            document.getElementById('modal-title').innerText = isVoice ? '设置 语音键 (Voice) 呼出快捷键' : `设置 ${keyName} 映射`;
+            const layerPrefix = currentEditingLayer === 0 ? '' : `【Layer ${currentEditingLayer}: ${curLayer.name}】`;
+            document.getElementById('modal-title').innerText = (isVoice && currentEditingLayer === 0) ? '设置 语音键 (Voice) 呼出快捷键' : `${layerPrefix}设置 ${keyName} 映射`;
             document.getElementById('modal-vk-badge').innerText = '0x' + searchVk.toString(16).toUpperCase().padStart(2, '0');
-            document.getElementById('quick-optgroup-media').style.display = isVoice ? 'none' : 'block';
+            document.getElementById('quick-optgroup-media').style.display = (isVoice && currentEditingLayer === 0) ? 'none' : 'block';
 
-            if (isVoice) {
+            if (isVoice && currentEditingLayer === 0) {
                 document.getElementById('trigger-tab-bar').style.display = 'none';
                 document.getElementById('mode-selector-grid').style.display = 'none';
                 document.getElementById('voice-mode-locked-card').style.display = 'block';
                 document.getElementById('long-press-header').style.display = 'none';
                 document.getElementById('double-click-header').style.display = 'none';
                 currentTriggerTab = 'click';
-                currentSelectedMode = 7;
+                selectActionMode(7);
                 renderTriggerView(7, editingBinding.click_mod || 64, editingBinding.click_key || 54, 0);
             } else {
+                document.getElementById('trigger-tab-bar').style.display = 'flex';
+                document.getElementById('mode-selector-grid').style.display = 'grid';
                 document.getElementById('voice-mode-locked-card').style.display = 'none';
                 currentTriggerTab = 'click';
                 loadTriggerDataToUI('click');
@@ -1217,7 +1755,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             document.getElementById('quick-key-select').value = '';
             document.getElementById('remap-modal').style.display = 'flex';
-            startKeyboardRecording();
         }
 
         function closeRemapModal() {
@@ -1233,7 +1770,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (prefix === 'c') {
-                if (isVoice) {
+                if (isVoice && currentEditingLayer === 0) {
                     showToast('语音键专用于语音录音与呼出快捷键，不可设为多媒体键', true);
                     document.getElementById('quick-key-select').value = '';
                     return;
@@ -1241,10 +1778,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 selectActionMode(4);
                 renderTriggerView(4, 0, 0, code);
             } else if (prefix === 'm') {
-                if (currentSelectedMode === 4) selectActionMode(2);
+                if (currentSelectedMode === 4 || currentSelectedMode === 9 || currentSelectedMode === 10) selectActionMode(2);
                 renderTriggerView(currentSelectedMode, mod, 0, 0);
             } else if (prefix === 'k') {
-                if (currentSelectedMode === 4) selectActionMode(2);
+                if (currentSelectedMode === 4 || currentSelectedMode === 9 || currentSelectedMode === 10) selectActionMode(2);
                 renderTriggerView(currentSelectedMode, mod, code, 0);
             }
         }
@@ -1254,10 +1791,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const code = parseHexOrDec(document.getElementById('adv-code').value);
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
-            if (isVoice) {
+            if (isVoice && currentEditingLayer === 0) {
                 renderTriggerView(7, mod, code, 0);
             } else if (currentSelectedMode === 4 || code >= 500) {
                 renderTriggerView(4, 0, 0, code);
+            } else if (currentSelectedMode === 9 || currentSelectedMode === 10) {
+                renderTriggerView(currentSelectedMode, 0, 0, 0);
             } else {
                 renderTriggerView(currentSelectedMode, mod, code, 0);
             }
@@ -1275,6 +1814,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         window.addEventListener('keydown', function(e) {
             const modal = document.getElementById('remap-modal');
             if (modal.style.display !== 'flex') return;
+
+            // If user is in layer switch or transparent mode, ignore keypresses
+            if (currentSelectedMode === 9 || currentSelectedMode === 10) return;
 
             // If user is typing in advanced numeric inputs, let it through
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -1295,7 +1837,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
 
             if (hidCode > 0) {
-                if (!isVoice && currentSelectedMode === 4) {
+                if (!(isVoice && currentEditingLayer === 0) && currentSelectedMode === 4) {
                     selectActionMode(2); // Auto switch from media to hold on keyboard input
                 }
                 renderTriggerView(currentSelectedMode, mod, hidCode, 0);
@@ -1304,66 +1846,83 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         function clearCurrentKeyBinding() {
             if (currentTriggerTab === 'click') {
-                renderTriggerView(0, 0, 0, 0);
-                if (editingBinding) editingBinding.has_click = false;
+                if (currentEditingLayer > 0) {
+                    // Set to transparent
+                    selectActionMode(10);
+                    renderTriggerView(10, 0, 0, 0);
+                    if (editingBinding) {
+                        editingBinding.click_type = 10;
+                        editingBinding.has_click = true;
+                    }
+                    showToast('已将单击设置为【穿透继承默认层】');
+                } else {
+                    renderTriggerView(0, 0, 0, 0);
+                    if (editingBinding) editingBinding.has_click = false;
+                    showToast('已清空单击动作配置');
+                }
             } else if (currentTriggerTab === 'long') {
                 document.getElementById('toggle-enable-long').checked = false;
                 if (editingBinding) editingBinding.has_long = false;
                 renderTriggerView(0, 0, 0, 0);
+                showToast('已关闭长按动作配置');
             } else if (currentTriggerTab === 'double') {
                 document.getElementById('toggle-enable-double').checked = false;
                 if (editingBinding) editingBinding.has_double = false;
                 renderTriggerView(0, 0, 0, 0);
+                showToast('已关闭双击动作配置');
             }
             document.getElementById('quick-key-select').value = '';
-            showToast('已清空当前动作配置');
         }
 
         async function saveRemapConfig() {
             saveActiveTabToBinding();
-            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+            normalizeKeymapConfig();
+            const curLayer = currentKeymap.layers[currentEditingLayer];
+            if (!curLayer.bindings) curLayer.bindings = [];
 
-            if (isVoice) {
+            const isVoice = (editingKey === 0x04 || editingKey === 0x3E);
+            if (isVoice && currentEditingLayer === 0) {
                 editingBinding.source_vk = 0x04;
                 editingBinding.has_click = true;
-                editingBinding.click_type = 7; // ACTION_VOICE_HOLD
+                editingBinding.click_type = 7;
                 editingBinding.has_long = false;
                 editingBinding.has_double = false;
             }
 
-            if (!currentKeymap.bindings) currentKeymap.bindings = [];
-
-            // Update in currentKeymap.bindings
-            const idx = currentKeymap.bindings.findIndex(x => x.source_vk === editingBinding.source_vk || (isVoice && x.source_vk === 0x04));
-            if (idx >= 0) {
-                currentKeymap.bindings[idx] = editingBinding;
-            } else {
-                currentKeymap.bindings.push(editingBinding);
+            // Sparse storage cleanup: if on Layer 1~4 and binding is completely transparent or disabled, remove it
+            let isAllTransparent = false;
+            if (currentEditingLayer > 0) {
+                isAllTransparent = 
+                    (!editingBinding.has_click || editingBinding.click_type === 10 || editingBinding.click_type === 0) &&
+                    (!editingBinding.has_long || editingBinding.long_type === 10 || editingBinding.long_type === 0) &&
+                    (!editingBinding.has_double || editingBinding.double_type === 10 || editingBinding.double_type === 0);
             }
 
-            try {
-                const res = await fetch('/api/keymap/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(currentKeymap)
-                });
-                if (res.ok) {
-                    closeRemapModal();
-                    showToast('按键映射（含单击/长按/双击）已保存并生效！');
-                    loadKeymap();
+            const idx = curLayer.bindings.findIndex(x => x.source_vk === editingBinding.source_vk);
+            if (isAllTransparent) {
+                if (idx >= 0) curLayer.bindings.splice(idx, 1);
+            } else {
+                if (idx >= 0) {
+                    curLayer.bindings[idx] = editingBinding;
                 } else {
-                    showToast('保存失败', true);
+                    curLayer.bindings.push(editingBinding);
                 }
-            } catch(e) {
-                showToast('保存请求出错: ' + e.message, true);
+            }
+
+            const ok = await saveKeymapToServer();
+            if (ok) {
+                closeRemapModal();
+                showToast(`按键映射已保存至【${curLayer.name || ('Layer ' + currentEditingLayer)}】！`);
+                renderLayerTabs();
+                updateRemoteVisualTooltips();
             }
         }
 
         async function resetAllKeymaps() {
-            if (!confirm('确定要将所有按键映射恢复为出厂默认值吗？')) return;
+            if (!confirm('确定要将所有 5 个层级的按键映射与属性恢复为出厂默认值吗？')) return;
             await fetch('/api/keymap/reset', { method: 'POST' });
             await loadKeymap();
-            alert('已恢复出厂按键映射！');
+            showToast('已恢复出厂默认层级映射！');
         }
 
         async function scanBleDevices() {

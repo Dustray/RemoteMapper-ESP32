@@ -60,7 +60,8 @@ void setup() {
     // 4. Initialize Key Engine with USB HID dispatcher callback and restore NVS mappings
     key_engine_init(&g_key_engine, usb_hid_dispatch_action);
     key_config_storage_init(&g_key_engine);
-    app_log("INIT", "Key Engine active with %u mappings", (unsigned int)g_key_engine.binding_count);
+    app_log("INIT", "Key Engine active with %u layers (Layer 0 has %u mappings)", 
+            (unsigned int)g_key_engine.layer_count, (unsigned int)g_key_engine.layers[0].binding_count);
 
     // 5. Initialize Serial / CDC CLI Manager
     cli_manager_init();
