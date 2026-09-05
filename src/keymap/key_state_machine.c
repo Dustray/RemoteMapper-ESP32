@@ -201,10 +201,10 @@ void key_engine_load_defaults(key_mapper_engine_t *engine) {
     engine->last_activity_time = 0;
 
     // ----------------------------------------------------
-    // Layer 0: 默认主层 (Default Layer)
+    // Layer 0: 默认层
     // ----------------------------------------------------
     key_layer_t *l0 = &engine->layers[0];
-    strncpy(l0->name, "默认主层", sizeof(l0->name) - 1);
+    strncpy(l0->name, "默认层", sizeof(l0->name) - 1);
     l0->type = LAYER_TYPE_PERSISTENT;
     l0->timeout_sec = 0;
     l0->led_color = 0x00FF00; // Green
@@ -354,25 +354,25 @@ void key_engine_load_defaults(key_mapper_engine_t *engine) {
     // ----------------------------------------------------
     // Preset Layers 1 ~ 4 (Inherit Layer 0 by default)
     // ----------------------------------------------------
-    strncpy(engine->layers[1].name, "影音娱乐", sizeof(engine->layers[1].name) - 1);
+    strncpy(engine->layers[1].name, "层1", sizeof(engine->layers[1].name) - 1);
     engine->layers[1].type = LAYER_TYPE_TIMEOUT;
     engine->layers[1].timeout_sec = 15;
     engine->layers[1].led_color = 0x06B6D4; // Cyan
     engine->layers[1].binding_count = 0;
 
-    strncpy(engine->layers[2].name, "游戏模式", sizeof(engine->layers[2].name) - 1);
+    strncpy(engine->layers[2].name, "层2", sizeof(engine->layers[2].name) - 1);
     engine->layers[2].type = LAYER_TYPE_PERSISTENT;
     engine->layers[2].timeout_sec = 0;
     engine->layers[2].led_color = 0xA855F7; // Purple
     engine->layers[2].binding_count = 0;
 
-    strncpy(engine->layers[3].name, "快捷宏层", sizeof(engine->layers[3].name) - 1);
+    strncpy(engine->layers[3].name, "层3", sizeof(engine->layers[3].name) - 1);
     engine->layers[3].type = LAYER_TYPE_ONESHOT;
     engine->layers[3].timeout_sec = 0;
     engine->layers[3].led_color = 0xEAB308; // Yellow
     engine->layers[3].binding_count = 0;
 
-    strncpy(engine->layers[4].name, "办公演示", sizeof(engine->layers[4].name) - 1);
+    strncpy(engine->layers[4].name, "层4", sizeof(engine->layers[4].name) - 1);
     engine->layers[4].type = LAYER_TYPE_PERSISTENT;
     engine->layers[4].timeout_sec = 0;
     engine->layers[4].led_color = 0xFFFFFF; // White

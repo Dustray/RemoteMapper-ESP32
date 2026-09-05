@@ -325,18 +325,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-tester')">🎮 遥控器与改键测试</button>
-            <button class="tab-btn" onclick="switchTab('tab-ble')">📡 蓝牙配对管理</button>
-            <button class="tab-btn" onclick="switchTab('tab-logs')">📜 运行日志</button>
-            <button class="tab-btn" onclick="switchTab('tab-nvs')">💾 NVS 配置管理</button>
-            <button class="tab-btn" onclick="switchTab('tab-wifi')">📶 Wi-Fi 与系统配置</button>
+            <button class="tab-btn active" onclick="switchTab('tab-tester')">遥控器与改键测试</button>
+            <button class="tab-btn" onclick="switchTab('tab-ble')">蓝牙配对管理</button>
+            <button class="tab-btn" onclick="switchTab('tab-logs')">运行日志</button>
+            <button class="tab-btn" onclick="switchTab('tab-nvs')">NVS 配置管理</button>
+            <button class="tab-btn" onclick="switchTab('tab-wifi')">Wi-Fi 与系统配置</button>
         </div>
 
         <!-- TAB 1: Key Tester & Remapper Visualizer -->
         <div id="tab-tester" class="tab-content active">
             <div class="card">
                 <div class="card-header">
-                    <span>🎮 真机 1:1 遥控器多层级系统 (Multi-Layer Keymapper)</span>
+                    <span>按键映射和层级设置</span>
                     <button class="btn btn-outline" style="font-size: 12px;" onclick="resetAllKeymaps()">恢复出厂默认层级</button>
                 </div>
                 
@@ -348,25 +348,25 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <!-- Layer Properties Card -->
                 <div class="layer-config-box" id="layer-config-box">
                     <div class="layer-config-item" style="flex:1.2; min-width:160px;">
-                        <span class="layer-config-label">层级别名 (Layer Name)</span>
-                        <input type="text" id="layer-name-input" maxlength="20" placeholder="例如：影音娱乐" 
+                        <span class="layer-config-label">层级别名</span>
+                        <input type="text" id="layer-name-input" maxlength="20" placeholder="例如：层1" 
                             style="background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; outline:none;"
                             onchange="onLayerNameChange(this.value)">
                     </div>
 
                     <div class="layer-config-item" style="flex:1.4; min-width:190px;">
-                        <span class="layer-config-label">层级生命周期类型 (Lifecycle Type)</span>
+                        <span class="layer-config-label">层级生命周期类型</span>
                         <select id="layer-type-select" 
                             style="background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; outline:none;"
                             onchange="onLayerTypeChange(this.value)">
-                            <option value="0">🔒 永久停留层 (Persistent - 需再次切层才退出)</option>
-                            <option value="1">⚡ 一次性瞬态层 (One-Shot - 触发一键后自动退回主层)</option>
-                            <option value="2">⏳ 超时自动返回层 (Timeout - 闲置超时自动退回主层)</option>
+                            <option value="0">永久停留层</option>
+                            <option value="1">一次性瞬态层</option>
+                            <option value="2">超时自动返回层</option>
                         </select>
                     </div>
 
                     <div class="layer-config-item" id="layer-timeout-wrapper" style="display:none; flex:1; min-width:150px;">
-                        <span class="layer-config-label">闲置回退超时 (秒: 3~300)</span>
+                        <span class="layer-config-label">闲置回退超时（秒）</span>
                         <div style="display:flex; align-items:center; gap:8px;">
                             <input type="number" id="layer-timeout-input" min="3" max="300" value="15" 
                                 style="width:70px; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; color:#fff; font-size:13px; outline:none;"
@@ -376,17 +376,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     </div>
 
                     <div class="layer-config-item" style="min-width:180px;">
-                        <span class="layer-config-label">板载指示灯颜色 (RGB Indicator)</span>
+                        <span class="layer-config-label">板载指示灯颜色</span>
                         <div style="display:flex; align-items:center; gap:8px;">
                             <input type="color" id="layer-color-picker" value="#00ff00" 
                                 style="width:36px; height:32px; border:none; border-radius:6px; cursor:pointer; background:transparent;"
                                 onchange="onLayerColorChange(this.value)">
                             <div style="display:flex; gap:5px; align-items:center;">
-                                <div class="layer-color-swatch" style="background:#00FF00;" title="绿色 (默认主层)" onclick="onLayerColorChange('#00FF00')"></div>
-                                <div class="layer-color-swatch" style="background:#06B6D4;" title="青色 (影音娱乐)" onclick="onLayerColorChange('#06B6D4')"></div>
-                                <div class="layer-color-swatch" style="background:#A855F7;" title="紫色 (游戏模式)" onclick="onLayerColorChange('#A855F7')"></div>
-                                <div class="layer-color-swatch" style="background:#EAB308;" title="黄色 (快捷宏层)" onclick="onLayerColorChange('#EAB308')"></div>
-                                <div class="layer-color-swatch" style="background:#FFFFFF;" title="白色 (办公演示)" onclick="onLayerColorChange('#FFFFFF')"></div>
+                                <div class="layer-color-swatch" style="background:#00FF00;" title="绿色（默认层）" onclick="onLayerColorChange('#00FF00')"></div>
+                                <div class="layer-color-swatch" style="background:#06B6D4;" title="青色（层1）" onclick="onLayerColorChange('#06B6D4')"></div>
+                                <div class="layer-color-swatch" style="background:#A855F7;" title="紫色（层2）" onclick="onLayerColorChange('#A855F7')"></div>
+                                <div class="layer-color-swatch" style="background:#EAB308;" title="黄色（层3）" onclick="onLayerColorChange('#EAB308')"></div>
+                                <div class="layer-color-swatch" style="background:#FFFFFF;" title="白色（层4）" onclick="onLayerColorChange('#FFFFFF')"></div>
                                 <div class="layer-color-swatch" style="background:#EF4444;" title="红色" onclick="onLayerColorChange('#EF4444')"></div>
                             </div>
                         </div>
@@ -394,14 +394,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                     <div style="display:flex; gap:8px; align-items:flex-end;">
                         <button class="btn btn-outline" id="btn-clear-layer" style="font-size:12px; display:none; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="clearLayerOverrides(currentEditingLayer)">
-                            🔄 清空本层覆盖 (恢复穿透)
+                            清空本层覆盖
                         </button>
-                        <button class="btn" style="font-size:12px;" onclick="saveAllLayers()">💾 保存全部层级配置至 Flash</button>
+                        <button class="btn" style="font-size:12px;" onclick="saveAllLayers()">保存层级配置</button>
                     </div>
                 </div>
 
                 <div id="layer-status-tip" style="margin-bottom:16px; padding:10px 14px; background:rgba(6,182,212,0.08); border:1px dashed rgba(6,182,212,0.3); border-radius:8px; font-size:12px; color:var(--text-muted); line-height:1.5;">
-                    🏠 <b>默认主层 (Layer 0)</b>：所有上层（Layer 1~4）未配置的按键都会自动穿透继承此层的映射规则。
+                    <b>默认层</b>：其他层未单独配置的按键会自动穿透继承默认层的映射。
                 </div>
                 
                 <div class="remote-tester-container">
@@ -409,35 +409,35 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <div class="real-remote-body">
                         <!-- Top Row: Power & Voice -->
                         <div class="remote-top-row">
-                            <div class="r-circle-btn power" id="btn-0x66" onclick="openRemapModal(0x66, '电源键 (Power)')">⏻</div>
-                            <div class="r-circle-btn voice" id="btn-0x04" onclick="openRemapModal(0x04, '语音键 (Voice)')">🎙</div>
+                            <div class="r-circle-btn power" id="btn-0x66" onclick="openRemapModal(0x66, '电源键')">⏻</div>
+                            <div class="r-circle-btn voice" id="btn-0x04" onclick="openRemapModal(0x04, '语音键')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg></div>
                         </div>
 
                         <!-- Middle: D-Pad -->
                         <div class="real-dpad-ring">
-                            <button class="dpad-part d-up" id="btn-0x52" onclick="openRemapModal(0x52, '方向上 (Up)')">●</button>
-                            <button class="dpad-part d-down" id="btn-0x51" onclick="openRemapModal(0x51, '方向下 (Down)')">●</button>
-                            <button class="dpad-part d-left" id="btn-0x50" onclick="openRemapModal(0x50, '方向左 (Left)')">●</button>
-                            <button class="dpad-part d-right" id="btn-0x4F" onclick="openRemapModal(0x4F, '方向右 (Right)')">●</button>
-                            <button class="dpad-part d-center" id="btn-0x28" onclick="openRemapModal(0x28, '确定键 (OK)')">OK</button>
+                            <button class="dpad-part d-up" id="btn-0x52" onclick="openRemapModal(0x52, '方向上')">●</button>
+                            <button class="dpad-part d-down" id="btn-0x51" onclick="openRemapModal(0x51, '方向下')">●</button>
+                            <button class="dpad-part d-left" id="btn-0x50" onclick="openRemapModal(0x50, '方向左')">●</button>
+                            <button class="dpad-part d-right" id="btn-0x4F" onclick="openRemapModal(0x4F, '方向右')">●</button>
+                            <button class="dpad-part d-center" id="btn-0x28" onclick="openRemapModal(0x28, '确定键')">OK</button>
                         </div>
 
                         <!-- Lower: 2 Columns Matching Real Remote -->
                         <div class="remote-controls-grid">
                             <!-- Left Column: Back, Home, Menu -->
                             <div class="ctrl-col-left">
-                                <div class="r-circle-btn" id="btn-0xF1" onclick="openRemapModal(0xF1, '返回键 (Back)')">&lt;</div>
-                                <div class="r-circle-btn" id="btn-0x24" onclick="openRemapModal(0x24, '主页键 (Home)')">⌂</div>
-                                <div class="r-circle-btn" id="btn-0x5D" onclick="openRemapModal(0x5D, '菜单键 (Menu)')">≡</div>
+                                <div class="r-circle-btn" id="btn-0xF1" onclick="openRemapModal(0xF1, '返回键')">&lt;</div>
+                                <div class="r-circle-btn" id="btn-0x24" onclick="openRemapModal(0x24, '主页键')">⌂</div>
+                                <div class="r-circle-btn" id="btn-0x5D" onclick="openRemapModal(0x5D, '菜单键')">≡</div>
                             </div>
 
                             <!-- Right Column: Vol Rocker (+/-) & TV -->
                             <div class="ctrl-col-right">
                                 <div class="vol-pill">
-                                    <button class="vol-half" id="btn-0x80" onclick="openRemapModal(0x80, '音量+ (Vol+)')">+</button>
-                                    <button class="vol-half" id="btn-0x81" onclick="openRemapModal(0x81, '音量- (Vol-)')">−</button>
+                                    <button class="vol-half" id="btn-0x80" onclick="openRemapModal(0x80, '音量+')">+</button>
+                                    <button class="vol-half" id="btn-0x81" onclick="openRemapModal(0x81, '音量-')">−</button>
                                 </div>
-                                <div class="r-circle-btn btn-tv-box" id="btn-0xC0" onclick="openRemapModal(0xC0, '电视键 (TV)')">📺 TV</div>
+                                <div class="r-circle-btn btn-tv-box" id="btn-0xC0" onclick="openRemapModal(0xC0, '电视键')">TV</div>
                             </div>
                         </div>
 
@@ -450,11 +450,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                     <!-- Live Key Event Telemetry -->
                     <div class="event-box">
-                        <h3 style="margin-bottom: 12px; font-size: 15px; color: var(--accent-cyan);">⚡ 实时按键遥测状态</h3>
+                        <h3 style="margin-bottom: 12px; font-size: 15px; color: var(--accent-cyan);">实时按键状态</h3>
                         <div class="stat-badge" id="live-key-name">等待按键...</div>
                         
                         <div class="event-field">
-                            <span>物理键码 (HID Raw Code)</span>
+                            <span>物理键码</span>
                             <span id="live-key-code">0x00</span>
                         </div>
                         <div class="event-field">
@@ -462,24 +462,24 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                             <span id="live-key-state" style="color: var(--text-muted);">IDLE</span>
                         </div>
                         <div class="event-field">
-                            <span>按下持续时间 (Hold Time)</span>
+                            <span>按下持续时间</span>
                             <span id="live-key-dur">0 ms</span>
                         </div>
                         <div class="event-field">
-                            <span>触发动作 (Action Type)</span>
+                            <span>触发动作</span>
                             <span id="live-act-type">ACTION_NONE</span>
                         </div>
                         <div class="event-field">
-                            <span>注入键值 (Dispatched Key)</span>
+                            <span>注入键值</span>
                             <span id="live-act-val">None</span>
                         </div>
                         <div class="event-field">
-                            <span>当前运行层级 (Active Layer)</span>
-                            <span id="live-active-layer" style="color: var(--accent-cyan); font-weight: bold;">Layer 0 (默认主层)</span>
+                            <span>当前运行层级</span>
+                            <span id="live-active-layer" style="color: var(--accent-cyan); font-weight: bold;">默认层</span>
                         </div>
 
                         <div style="margin-top: 20px; padding: 12px; background: rgba(6,182,212,0.1); border-radius: 8px; border: 1px dashed rgba(6,182,212,0.3); font-size: 13px;">
-                            💡 <b>极简改键说明</b>：直接点击左侧任意遥控器按键，然后<b>直接在电脑键盘上按下您想映射的按键或快捷键</b>（或点选常用多媒体功能），点击保存即可！
+                            点击左侧按键进行按键映射调整
                         </div>
                     </div>
                 </div>
@@ -490,8 +490,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div id="tab-ble" class="tab-content">
             <div class="card">
                 <div class="card-header">
-                    <span>📡 蓝牙设备雷达与遥控器配对</span>
-                    <button class="btn" onclick="scanBleDevices()">🔍 扫描附近蓝牙设备</button>
+                    <span>蓝牙设备配对</span>
+                    <button class="btn" onclick="scanBleDevices()">扫描蓝牙设备</button>
                 </div>
                 <div id="ble-dev-list" style="margin-top: 14px;">点击上方按钮扫描附近的蓝牙遥控器...</div>
             </div>
@@ -501,10 +501,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div id="tab-logs" class="tab-content">
             <div class="card">
                 <div class="card-header">
-                    <span>📜 ESP32-S3 实时运行日志 (保留完整 250 行)</span>
+                    <span>实时运行日志</span>
                     <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="refreshLogs()">🔄 刷新</button>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="clearLogs()">🧹 清空</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="refreshLogs()">刷新</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="clearLogs()">清空</button>
                     </div>
                 </div>
                 <div class="log-terminal" id="log-terminal">正在加载运行日志...</div>
@@ -516,25 +516,25 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="card">
                 <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
                     <div>
-                        <span style="font-size: 16px;">💾 ESP32 Flash NVS 纯文本配置管理器</span>
+                        <span style="font-size: 16px;">NVS 配置管理</span>
                         <div style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">
-                            以 JSON 纯文本形式统一管理 ESP32 Flash NVS 中存储的所有持久化参数（Wi-Fi、蓝牙绑定、改键规则等）。支持实时编辑、保存、导出备份与导入恢复。
+                            以 JSON 形式统一管理存储在 Flash NVS 中的所有持久化参数。
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="loadNvsConfig()">🔄 重新读取</button>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="formatNvsJson()">🧹 格式化 JSON</button>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="copyNvsJson()">📋 复制文本</button>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="exportNvsJson()">📥 导出备份</button>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="document.getElementById('nvs-file-input').click()">📤 导入文件</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="loadNvsConfig()">重新读取</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="formatNvsJson()">格式化 JSON</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="copyNvsJson()">复制文本</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="exportNvsJson()">导出备份</button>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="document.getElementById('nvs-file-input').click()">导入文件</button>
                         <input type="file" id="nvs-file-input" accept=".json" style="display:none;" onchange="importNvsJson(event)">
-                        <button class="btn" style="font-size: 12px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));" onclick="saveNvsConfig()">💾 保存写入 NVS</button>
+                        <button class="btn" style="font-size: 12px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));" onclick="saveNvsConfig()">保存写入 NVS</button>
                     </div>
                 </div>
 
                 <div style="position: relative; margin-bottom: 16px;">
                     <div id="nvs-json-status" style="position: absolute; top: 12px; right: 16px; font-size: 12px; z-index: 2; padding: 3px 8px; border-radius: 6px; background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4);">
-                        🟢 JSON 格式有效
+                        JSON 格式有效
                     </div>
                     <textarea id="nvs-editor" spellcheck="false" placeholder="正在读取 ESP32 NVS 配置..." 
                         style="width: 100%; height: 460px; background: #070a10; color: #38bdf8; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.6; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; resize: vertical; outline: none; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);"
@@ -543,18 +543,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                 <div class="grid-2">
                     <div style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-                        <b style="color: var(--text-main); display:block; margin-bottom:6px;">💡 NVS 命名空间常用说明</b>
-                        • <code style="color:var(--accent-cyan)">wifi_conf</code>: 包含 <code>sta_ssid</code>, <code>sta_pass</code> (Wi-Fi配置) 和 <code>ap_ssid</code>, <code>ap_pass</code> (热点配置)<br>
-                        • <code style="color:var(--accent-cyan)">ble_conf</code>: 包含 <code>bound_mac</code>, <code>bound_name</code>, <code>bound_type</code> (绑定的蓝牙遥控器)<br>
-                        • <code style="color:var(--accent-cyan)">keymap_conf</code>: 包含 <code>cfg_json</code> (13个按键的完整映射规则字典)<br>
-                        • 支持任意自由增删或自定义新的命名空间与键值对，保存后将持久化保存在 Flash 中。
+                        <b style="color: var(--text-main); display:block; margin-bottom:6px;">NVS 命名空间说明</b>
+                        • <code style="color:var(--accent-cyan)">wifi_conf</code>: Wi-Fi 与热点连接参数<br>
+                        • <code style="color:var(--accent-cyan)">ble_conf</code>: 绑定的蓝牙遥控器参数<br>
+                        • <code style="color:var(--accent-cyan)">keymap_conf</code>: 各层级按键映射规则字典<br>
+                        • 保存后将持久化写入 Flash 中。
                     </div>
                     <div style="background: #090d16; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 14px 18px; font-size: 13px; display:flex; flex-direction:column; justify-content:space-between;">
                         <div>
-                            <b style="color: #f87171; display:block; margin-bottom:6px;">⚠️ 危险区域：清空 NVS / 恢复出厂设置</b>
-                            <span style="color: var(--text-muted);">擦除整个 ESP32 Flash NVS 分区中的所有存储数据（清除所有 Wi-Fi、蓝牙配对和改键设置），并自动重启系统。</span>
+                            <b style="color: #f87171; display:block; margin-bottom:6px;">清空 NVS / 恢复出厂设置</b>
+                            <span style="color: var(--text-muted);">擦除 Flash NVS 分区中的所有存储数据（清除所有 Wi-Fi、蓝牙配对和改键设置），并自动重启。</span>
                         </div>
-                        <button class="btn btn-danger" style="margin-top: 12px; align-self: flex-start;" onclick="resetNvsFactory()">🧨 清空全部 NVS 并恢复出厂</button>
+                        <button class="btn btn-danger" style="margin-top: 12px; align-self: flex-start;" onclick="resetNvsFactory()">清空全部 NVS 并恢复出厂</button>
                     </div>
                 </div>
             </div>
@@ -565,29 +565,29 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="grid-2">
                 <div class="card">
                     <div class="card-header">
-                        <span>📶 Wi-Fi 网络配置与附近热点搜索</span>
-                        <button class="btn btn-outline" style="font-size: 12px;" onclick="scanWifiNetworks()">🔍 搜索 Wi-Fi</button>
+                        <span>Wi-Fi 网络配置</span>
+                        <button class="btn btn-outline" style="font-size: 12px;" onclick="scanWifiNetworks()">搜索 Wi-Fi</button>
                     </div>
                     <div id="wifi-scan-list" style="margin-bottom: 16px; font-size: 13px; color: var(--text-muted);">
-                        点击右上角“搜索 Wi-Fi”可扫描附近 2.4GHz 无线网络，点击即可自动填入 SSID。
+                        点击右上角“搜索 Wi-Fi”可扫描附近无线网络，点击即可自动填入 SSID。
                     </div>
                     <div class="form-group">
-                        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Wi-Fi 名称 (SSID)</label>
-                        <input type="text" id="wifi-ssid" placeholder="输入或从上方选择您的 Wi-Fi 名称" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
+                        <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Wi-Fi 名称</label>
+                        <input type="text" id="wifi-ssid" placeholder="输入或选择 Wi-Fi 名称" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
                     </div>
                     <div class="form-group" style="margin-top:14px;">
                         <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Wi-Fi 密码</label>
                         <input type="password" id="wifi-pass" placeholder="输入 Wi-Fi 密码" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
                     </div>
-                    <button class="btn" style="width: 100%; margin-top:16px;" onclick="saveWifi()">💾 保存并连接 Wi-Fi</button>
+                    <button class="btn" style="width: 100%; margin-top:16px;" onclick="saveWifi()">保存并连接 Wi-Fi</button>
                 </div>
 
                 <div class="card">
-                    <div class="card-header"><span>⚙️ 系统控制</span></div>
+                    <div class="card-header"><span>系统控制</span></div>
                     <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
                         当前固件支持 UAC 1.0 USB 麦克风录音设备与标准 HID 键盘/多媒体复合注入。
                     </p>
-                    <button class="btn btn-danger" style="width: 100%;" onclick="restartDevice()">🔄 重启 ESP32-S3 设备</button>
+                    <button class="btn btn-danger" style="width: 100%;" onclick="restartDevice()">重启设备</button>
                 </div>
             </div>
         </div>
@@ -603,19 +603,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             <!-- Trigger Sub-Tabs (Click / Long Press / Double Click) -->
             <div id="trigger-tab-bar" style="display: flex; gap: 6px; margin-bottom: 14px; background: #070a10; padding: 4px; border-radius: 10px; border: 1px solid var(--border-color);">
-                <button type="button" class="trigger-tab-btn active" id="tab-btn-click" onclick="switchTriggerTab('click')">🔘 单击 / 短按</button>
-                <button type="button" class="trigger-tab-btn" id="tab-btn-long" onclick="switchTriggerTab('long')">⏱️ 长按配置</button>
-                <button type="button" class="trigger-tab-btn" id="tab-btn-double" onclick="switchTriggerTab('double')">⚡ 双击配置</button>
+                <button type="button" class="trigger-tab-btn active" id="tab-btn-click" onclick="switchTriggerTab('click')">单击</button>
+                <button type="button" class="trigger-tab-btn" id="tab-btn-long" onclick="switchTriggerTab('long')">长按</button>
+                <button type="button" class="trigger-tab-btn" id="tab-btn-double" onclick="switchTriggerTab('double')">双击</button>
             </div>
 
             <!-- Voice Mode Locked Card (Only for Voice Key 0x04) -->
             <div id="voice-mode-locked-card" style="display:none; background:rgba(59,130,246,0.15); border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <span style="font-size:24px;">🎙️</span>
-                    <div>
-                        <div style="font-size:14px; font-weight:700; color:#93c5fd;">语音对讲专属模式 (系统强制绑定)</div>
-                        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">按住时开启硬件麦克风录音并按下输入法热键，松开时停止录音并释放热键。</div>
-                    </div>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:#93c5fd;">语音对讲专属模式</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">按住时开启硬件麦克风录音并发送输入法热键，松开时停止录音并释放热键。</div>
                 </div>
             </div>
 
@@ -623,8 +620,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div id="long-press-header" style="display:none; background:#070a10; border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <b style="font-size:13px; color:#fff;">⏱️ 启用长按功能 (Long Press)</b>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">按住时间达到阈值后触发独立长按动作，并自动抑制单击动作</div>
+                        <b style="font-size:13px; color:#fff;">启用长按功能</b>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">按住时间达到阈值后触发长按动作</div>
                     </div>
                     <label class="switch-toggle">
                         <input type="checkbox" id="toggle-enable-long" onchange="onToggleTriggerEnable('long')">
@@ -642,8 +639,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div id="double-click-header" style="display:none; background:#070a10; border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <b style="font-size:13px; color:#fff;">⚡ 启用双击功能 (Double Click)</b>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">在判定时间窗口内快速按下两次时触发独立双击动作</div>
+                        <b style="font-size:13px; color:#fff;">启用双击功能</b>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">在判定时间窗口内快速按两次触发双击动作</div>
                     </div>
                     <label class="switch-toggle">
                         <input type="checkbox" id="toggle-enable-double" onchange="onToggleTriggerEnable('double')">
@@ -659,156 +656,150 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             <!-- Mode Selector -->
             <div style="margin-bottom: 16px;">
-                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600;" id="action-mode-label">🎯 触发动作模式 (Action Mode)</label>
+                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600;" id="action-mode-label">触发动作模式</label>
                 
                 <!-- Grid for Normal Keys (up to 5 modes) -->
                 <div id="mode-selector-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px;">
                     <div class="mode-card" id="mode-card-2" onclick="selectActionMode(2)">
-                        <div style="font-size:18px; margin-bottom:2px;">⚡</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">键盘直通</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">原生按住/连发</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">支持按住连发</div>
                     </div>
                     <div class="mode-card" id="mode-card-1" onclick="selectActionMode(1)">
-                        <div style="font-size:18px; margin-bottom:2px;">🎯</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">单次点按</div>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">组合快捷键</div>
                     </div>
                     <div class="mode-card" id="mode-card-4" onclick="selectActionMode(4)">
-                        <div style="font-size:18px; margin-bottom:2px;">🔊</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">多媒体控制</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">音量/播放/睡眠</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">音量/播放/休眠</div>
                     </div>
                     <div class="mode-card" id="mode-card-9" onclick="selectActionMode(9)">
-                        <div style="font-size:18px; margin-bottom:2px;">🎚️</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">切换层级</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">切入层/自翻转</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">切换目标层</div>
                     </div>
                     <div class="mode-card" id="mode-card-10" onclick="selectActionMode(10)">
-                        <div style="font-size:18px; margin-bottom:2px;">🔗</div>
                         <div class="mode-title" style="font-size:13px; font-weight:700; color:#fff;">穿透继承</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">沿用主层配置</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">继承默认层配置</div>
                     </div>
                 </div>
             </div>
 
             <!-- Layer Switch Target Selector Box (Mode 9) -->
             <div id="layer-switch-config-box" style="display:none; background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
-                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">🎚️ 选择目标切换层级 (Target Layer)</label>
+                <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">选择目标层级</label>
                 <div id="layer-target-options" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px;">
                     <!-- Rendered dynamically -->
                 </div>
                 <div style="margin-top:12px; padding:10px 14px; background:rgba(6,182,212,0.1); border-radius:8px; border:1px dashed rgba(6,182,212,0.3); font-size:12px; color:var(--text-muted); line-height:1.5;">
-                    💡 <b>智能自翻转双向切层 (Auto-Toggle)</b>：若遥控器当前已处于目标层，再次触发此动作将<b>自动翻转退回默认主层 (Layer 0)</b>！配合穿透继承，双击/长按同一个键即可自然进出，无需额外配置返回键。
+                    若当前已在目标层，再次触发将自动返回默认层。
                 </div>
             </div>
 
             <!-- Layer Transparent Mode Box (Mode 10) -->
             <div id="layer-trans-config-box" style="display:none; background: rgba(59,130,246,0.1); border: 1px dashed #3b82f6; border-radius: 12px; padding: 16px; margin-bottom: 18px; text-align: center;">
-                <div style="font-size:24px; margin-bottom:4px;">🔗</div>
-                <div style="font-size:14px; font-weight:700; color:#93c5fd;">穿透继承模式 (Transparent Mode)</div>
+                <div style="font-size:14px; font-weight:700; color:#93c5fd;">穿透继承模式</div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
-                    本层不单独覆盖此按键触发动作，按下时将自动穿透并执行 <b>Layer 0 (默认主层)</b> 的对应配置。
+                    本层不单独覆盖此按键触发动作，按下时自动穿透继承默认层的对应配置。
                 </div>
             </div>
 
             <!-- Keyboard Direct Capture Box -->
             <div class="key-recorder-box" id="key-recorder-box" tabindex="0" onclick="startKeyboardRecording()">
                 <div style="font-size: 13px; color: var(--text-muted);" id="recorder-instruction">
-                    ⌨️ <b>直接在键盘上按下任意按键或快捷键</b>（支持单键与 Ctrl/Alt/Win/Shift 组合键）
+                    在键盘上按下任意按键或快捷键（支持 Ctrl/Alt/Win/Shift 组合键）
                 </div>
                 <div class="key-badge-display" id="recorded-badge-display">
-                    <span style="color: var(--text-muted); font-size: 16px; font-weight: normal;">点击此处开始按键录制...</span>
+                    <span style="color: var(--text-muted); font-size: 14px; font-weight: normal;">点击此处开始按键录制</span>
                 </div>
             </div>
 
             <!-- Advanced Manual Key Code & Quick Select Area (Always Expanded) -->
             <div id="adv-config-container" style="background: #090d16; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
                 <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🛠️ 快捷选择与键码微调</span>
+                    <span>快捷选择与键码微调</span>
                 </div>
 
                 <!-- Quick Key Dropdown -->
                 <div style="margin-bottom: 12px;">
-                    <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">⚡ 快速选择特殊按键 / 多媒体功能</label>
+                    <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">快速选择按键 / 多媒体功能</label>
                     <select id="quick-key-select" onchange="onQuickKeySelect(this.value)" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none;">
-                        <option value="">-- 点击选择常见按键 / 组合键 / 多媒体 --</option>
+                        <option value="">-- 选择常用按键 / 组合键 / 多媒体 --</option>
                         <optgroup label="常用控制键">
-                            <option value="k:0x00:0x28">回车键 (Enter - 0x28)</option>
-                            <option value="k:0x00:0x29">Esc 键 (Escape - 0x29)</option>
-                            <option value="k:0x00:0x2C">空格键 (Space - 0x2C)</option>
-                            <option value="k:0x00:0x2B">Tab 键 (0x2B)</option>
-                            <option value="k:0x00:0x2A">退格键 (Backspace - 0x2A)</option>
-                            <option value="k:0x00:0x4C">删除键 (Delete - 0x4C)</option>
-                            <option value="k:0x00:0x39">大写锁定 (CapsLock - 0x39)</option>
-                            <option value="k:0x00:0x46">屏幕截图 (PrintScreen - 0x46)</option>
+                            <option value="k:0x00:0x28">回车</option>
+                            <option value="k:0x00:0x29">Esc</option>
+                            <option value="k:0x00:0x2C">空格</option>
+                            <option value="k:0x00:0x2B">Tab</option>
+                            <option value="k:0x00:0x2A">退格</option>
+                            <option value="k:0x00:0x4C">删除</option>
+                            <option value="k:0x00:0x39">大写锁定</option>
+                            <option value="k:0x00:0x46">屏幕截图</option>
                         </optgroup>
-                        <optgroup label="单修饰键 (直接触发)">
-                            <option value="m:0x08:0x00">Windows 徽标键 (Win - 0x08)</option>
-                            <option value="m:0x01:0x00">Control 键 (Ctrl - 0x01)</option>
-                            <option value="m:0x04:0x00">Alt 键 (0x04)</option>
-                            <option value="m:0x02:0x00">Shift 键 (0x02)</option>
+                        <optgroup label="单修饰键">
+                            <option value="m:0x08:0x00">Win 键</option>
+                            <option value="m:0x01:0x00">Ctrl 键</option>
+                            <option value="m:0x04:0x00">Alt 键</option>
+                            <option value="m:0x02:0x00">Shift 键</option>
                         </optgroup>
                         <optgroup label="方向与翻页导航">
-                            <option value="k:0x00:0x52">方向上 (Arrow Up - 0x52)</option>
-                            <option value="k:0x00:0x51">方向下 (Arrow Down - 0x51)</option>
-                            <option value="k:0x00:0x50">方向左 (Arrow Left - 0x50)</option>
-                            <option value="k:0x00:0x4F">方向右 (Arrow Right - 0x4F)</option>
-                            <option value="k:0x00:0x4B">上一页 (PageUp - 0x4B)</option>
-                            <option value="k:0x00:0x4E">下一页 (PageDown - 0x4E)</option>
-                            <option value="k:0x00:0x4A">行首 (Home - 0x4A)</option>
-                            <option value="k:0x00:0x4D">行尾 (End - 0x4D)</option>
+                            <option value="k:0x00:0x52">方向上</option>
+                            <option value="k:0x00:0x51">方向下</option>
+                            <option value="k:0x00:0x50">方向左</option>
+                            <option value="k:0x00:0x4F">方向右</option>
+                            <option value="k:0x00:0x4B">上一页</option>
+                            <option value="k:0x00:0x4E">下一页</option>
+                            <option value="k:0x00:0x4A">行首</option>
+                            <option value="k:0x00:0x4D">行尾</option>
                         </optgroup>
-                        <optgroup label="功能键 (F1 ~ F12)">
-                            <option value="k:0x00:0x3A">F1 (0x3A)</option>
-                            <option value="k:0x00:0x3B">F2 (0x3B)</option>
-                            <option value="k:0x00:0x3C">F3 (0x3C)</option>
-                            <option value="k:0x00:0x3D">F4 (0x3D)</option>
-                            <option value="k:0x00:0x3E">F5 (刷新 - 0x3E)</option>
-                            <option value="k:0x00:0x3F">F6 (0x3F)</option>
-                            <option value="k:0x00:0x40">F7 (0x40)</option>
-                            <option value="k:0x00:0x41">F8 (0x41)</option>
-                            <option value="k:0x00:0x42">F9 (0x42)</option>
-                            <option value="k:0x00:0x43">F10 (0x43)</option>
-                            <option value="k:0x00:0x44">F11 (全屏 - 0x44)</option>
-                            <option value="k:0x00:0x45">F12 (开发者工具 - 0x45)</option>
+                        <optgroup label="功能键 F1 ~ F12">
+                            <option value="k:0x00:0x3A">F1</option>
+                            <option value="k:0x00:0x3B">F2</option>
+                            <option value="k:0x00:0x3C">F3</option>
+                            <option value="k:0x00:0x3D">F4</option>
+                            <option value="k:0x00:0x3E">F5</option>
+                            <option value="k:0x00:0x3F">F6</option>
+                            <option value="k:0x00:0x40">F7</option>
+                            <option value="k:0x00:0x41">F8</option>
+                            <option value="k:0x00:0x42">F9</option>
+                            <option value="k:0x00:0x43">F10</option>
+                            <option value="k:0x00:0x44">F11</option>
+                            <option value="k:0x00:0x45">F12</option>
                         </optgroup>
-                        <optgroup label="🖥️ 本地自定义脚本专用键 (F13 ~ F24 无冲突)">
-                            <option value="k:0x00:0x68">F13 (触发脚本 1 - 0x68)</option>
-                            <option value="k:0x00:0x69">F14 (触发脚本 2 - 0x69)</option>
-                            <option value="k:0x00:0x6A">F15 (触发脚本 3 - 0x6A)</option>
-                            <option value="k:0x00:0x6B">F16 (触发脚本 4 - 0x6B)</option>
-                            <option value="k:0x00:0x6C">F17 (触发脚本 5 - 0x6C)</option>
-                            <option value="k:0x00:0x6D">F18 (触发脚本 6 - 0x6D)</option>
-                            <option value="k:0x00:0x6E">F19 (触发脚本 7 - 0x6E)</option>
-                            <option value="k:0x00:0x6F">F20 (触发脚本 8 - 0x6F)</option>
-                            <option value="k:0x00:0x70">F21 (触发脚本 9 - 0x70)</option>
-                            <option value="k:0x00:0x71">F22 (触发脚本 10 - 0x71)</option>
-                            <option value="k:0x00:0x72">F23 (触发脚本 11 - 0x72)</option>
-                            <option value="k:0x00:0x73">F24 (触发脚本 12 - 0x73)</option>
+                        <optgroup label="自定义脚本专用键 F13 ~ F24">
+                            <option value="k:0x00:0x68">F13</option>
+                            <option value="k:0x00:0x69">F14</option>
+                            <option value="k:0x00:0x6A">F15</option>
+                            <option value="k:0x00:0x6B">F16</option>
+                            <option value="k:0x00:0x6C">F17</option>
+                            <option value="k:0x00:0x6D">F18</option>
+                            <option value="k:0x00:0x6E">F19</option>
+                            <option value="k:0x00:0x6F">F20</option>
+                            <option value="k:0x00:0x70">F21</option>
+                            <option value="k:0x00:0x71">F22</option>
+                            <option value="k:0x00:0x72">F23</option>
+                            <option value="k:0x00:0x73">F24</option>
                         </optgroup>
                         <optgroup label="常用快捷组合键">
-                            <option value="k:0x04:0x36">Alt + , (豆包/AI语音助手)</option>
-                            <option value="k:0x08:0x0B">Win + H (Windows语音听写)</option>
-                            <option value="k:0x08:0x07">Win + D (显示/隐藏桌面)</option>
-                            <option value="k:0x04:0x2B">Alt + Tab (切换窗口任务)</option>
-                            <option value="k:0x04:0x3D">Alt + F4 (关闭当前窗口)</option>
-                            <option value="k:0x01:0x06">Ctrl + C (复制)</option>
-                            <option value="k:0x01:0x19">Ctrl + V (粘贴)</option>
-                            <option value="k:0x01:0x1D">Ctrl + Z (撤销)</option>
+                            <option value="k:0x04:0x36">Alt + ,</option>
+                            <option value="k:0x08:0x0B">Win + H</option>
+                            <option value="k:0x08:0x07">Win + D</option>
+                            <option value="k:0x04:0x2B">Alt + Tab</option>
+                            <option value="k:0x04:0x3D">Alt + F4</option>
+                            <option value="k:0x01:0x06">Ctrl + C</option>
+                            <option value="k:0x01:0x19">Ctrl + V</option>
+                            <option value="k:0x01:0x1D">Ctrl + Z</option>
                         </optgroup>
-                        <optgroup label="多媒体与系统控制 (仅普通按键)" id="quick-optgroup-media">
-                            <option value="c:0x00:0x00E9">🔊 音量增加 (Volume Up - 0x00E9)</option>
-                            <option value="c:0x00:0x00EA">🔉 音量减少 (Volume Down - 0x00EA)</option>
-                            <option value="c:0x00:0x00E2">🔇 静音 (Mute - 0x00E2)</option>
-                            <option value="c:0x00:0x00CD">⏯️ 播放 / 暂停 (Play/Pause - 0x00CD)</option>
-                            <option value="c:0x00:0x00B5">⏭️ 下一曲 (Next Track - 0x00B5)</option>
-                            <option value="c:0x00:0x00B6">⏮️ 上一曲 (Previous Track - 0x00B6)</option>
-                            <option value="c:0x00:0x00B7">⏹️ 停止播放 (Stop - 0x00B7)</option>
-                            <option value="c:0x00:0x0032">🌙 系统休眠 (Sleep - 0x0032)</option>
-                            <option value="c:0x00:0x0224">🔙 网页/应用返回 (AC Back - 0x0224)</option>
-                            <option value="c:0x00:0x0223">⌂ 网页/系统主页 (AC Home - 0x0223)</option>
-                            <option value="c:0x00:0x0225">🔜 网页前进 (AC Forward - 0x0225)</option>
-                            <option value="c:0x00:0x0192">🧮 打开计算器 (Calculator - 0x0192)</option>
+                        <optgroup label="多媒体与系统控制" id="quick-optgroup-media">
+                            <option value="c:0x00:0x00E9">音量增加</option>
+                            <option value="c:0x00:0x00EA">音量减少</option>
+                            <option value="c:0x00:0x00E2">静音</option>
+                            <option value="c:0x00:0x00CD">播放 / 暂停</option>
+                            <option value="c:0x00:0x00B5">下一曲</option>
+                            <option value="c:0x00:0x00B6">上一曲</option>
+                            <option value="c:0x00:0x00B7">停止播放</option>
+                            <option value="c:0x00:0x0032">系统休眠</option>
+                            <option value="c:0x00:0x0224">网页返回</option>
+                            <option value="c:0x00:0x0223">网页主页</option>
+                            <option value="c:0x00:0x0225">网页前进</option>
+                            <option value="c:0x00:0x0192">打开计算器</option>
                         </optgroup>
                     </select>
                 </div>
@@ -816,11 +807,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <!-- Numerical Inputs -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
-                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">修饰键 (Mod: 0x01=Ctrl, 0x02=Shift, 0x04=Alt, 0x08=Win)</label>
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">修饰键（0x01=Ctrl, 0x02=Shift, 0x04=Alt, 0x08=Win）</label>
                         <input type="text" id="adv-mod" value="0x00" oninput="onAdvInputChanged()" placeholder="0x00" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none; font-family:monospace;">
                     </div>
                     <div>
-                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">按键码 (HID 键码 如 0x2C 或 多媒体 0x0221)</label>
+                        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">按键码（如 0x2C 或多媒体 0x00E9）</label>
                         <input type="text" id="adv-code" value="0x00" oninput="onAdvInputChanged()" placeholder="0x00" style="width:100%; padding:8px 10px; background:#151d2a; border:1px solid #243247; color:#fff; border-radius:8px; font-size:13px; outline:none; font-family:monospace;">
                     </div>
                 </div>
@@ -828,10 +819,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             <!-- Action Buttons -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <button class="btn btn-outline" style="font-size: 13px; color: var(--accent-red); border-color: rgba(239,68,68,0.3);" onclick="clearCurrentKeyBinding()">🗑️ 清空映射 (禁用此键)</button>
+                <button class="btn btn-outline" style="font-size: 13px; color: var(--accent-red); border-color: rgba(239,68,68,0.3);" onclick="clearCurrentKeyBinding()">清空映射</button>
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-outline" onclick="closeRemapModal()">取消</button>
-                    <button class="btn" onclick="saveRemapConfig()">💾 保存映射</button>
+                    <button class="btn" onclick="saveRemapConfig()">保存映射</button>
                 </div>
             </div>
         </div>
@@ -848,26 +839,24 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         let editingBinding = null;
         let clearHighlightTimer = null;
 
-        const LAYER_ICONS = ['🏠', '🎬', '🎮', '⚡', '💼'];
-
         const KEY_NAMES = {
-            0x66: '电源键 (Power)',
-            0xFF: '电源键 (Power)',
-            0x04: '语音键 (Voice)',
-            0x52: '方向上 (Up)',
-            0x51: '方向下 (Down)',
-            0x50: '方向左 (Left)',
-            0x4F: '方向右 (Right)',
-            0x28: '确定键 (OK)',
-            0xF1: '返回键 (Back)',
-            0x24: '主页键 (Home)',
-            0x4A: '主页键 (Home)',
-            0x5D: '菜单键 (Menu)',
-            0x65: '菜单键 (Menu)',
-            0x80: '音量+ (Vol+)',
-            0x81: '音量- (Vol-)',
-            0xC0: '电视键 (TV)',
-            0x35: '电视键 (TV)'
+            0x66: '电源键',
+            0xFF: '电源键',
+            0x04: '语音键',
+            0x52: '方向上',
+            0x51: '方向下',
+            0x50: '方向左',
+            0x4F: '方向右',
+            0x28: '确定键',
+            0xF1: '返回键',
+            0x24: '主页键',
+            0x4A: '主页键',
+            0x5D: '菜单键',
+            0x65: '菜单键',
+            0x80: '音量+',
+            0x81: '音量-',
+            0xC0: '电视键',
+            0x35: '电视键'
         };
 
         // DOM Key -> USB HID Keyboard Code Map
@@ -917,20 +906,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (!currentKeymap.layers || !Array.isArray(currentKeymap.layers) || currentKeymap.layers.length === 0) {
                 const legacyBindings = currentKeymap.bindings || [];
                 currentKeymap.layers = [
-                    { id: 0, name: '默认主层', type: 0, timeout: 0, color: '0x00FF00', bindings: legacyBindings },
-                    { id: 1, name: '影音娱乐', type: 2, timeout: 15, color: '0x06B6D4', bindings: [] },
-                    { id: 2, name: '游戏模式', type: 0, timeout: 0, color: '0xA855F7', bindings: [] },
-                    { id: 3, name: '快捷宏层', type: 1, timeout: 0, color: '0xEAB308', bindings: [] },
-                    { id: 4, name: '办公演示', type: 0, timeout: 0, color: '0xFFFFFF', bindings: [] }
+                    { id: 0, name: '默认层', type: 0, timeout: 0, color: '0x00FF00', bindings: legacyBindings },
+                    { id: 1, name: '层1', type: 2, timeout: 15, color: '0x06B6D4', bindings: [] },
+                    { id: 2, name: '层2', type: 0, timeout: 0, color: '0xA855F7', bindings: [] },
+                    { id: 3, name: '层3', type: 1, timeout: 0, color: '0xEAB308', bindings: [] },
+                    { id: 4, name: '层4', type: 0, timeout: 0, color: '0xFFFFFF', bindings: [] }
                 ];
             }
             while (currentKeymap.layers.length < 5) {
                 const id = currentKeymap.layers.length;
-                const defaultNames = ['默认主层', '影音娱乐', '游戏模式', '快捷宏层', '办公演示'];
+                const defaultNames = ['默认层', '层1', '层2', '层3', '层4'];
                 const defaultColors = ['0x00FF00', '0x06B6D4', '0xA855F7', '0xEAB308', '0xFFFFFF'];
                 currentKeymap.layers.push({
                     id: id,
-                    name: defaultNames[id] || (`Layer ${id}`),
+                    name: defaultNames[id] || (`层${id}`),
                     type: (id === 1 ? 2 : (id === 3 ? 1 : 0)),
                     timeout: (id === 1 ? 15 : 0),
                     color: defaultColors[id] || '0x00FF00',
@@ -984,11 +973,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 }
 
                 const curLayerObj = (currentKeymap && currentKeymap.layers) ? currentKeymap.layers[activeHardwareLayer] : null;
-                const layerName = curLayerObj ? curLayerObj.name : `Layer ${activeHardwareLayer}`;
+                const layerName = curLayerObj ? curLayerObj.name : (activeHardwareLayer === 0 ? '默认层' : `层${activeHardwareLayer}`);
                 const layerColor = curLayerObj ? hexToHtmlColor(curLayerObj.color) : 'var(--accent-cyan)';
                 const activeEl = document.getElementById('live-active-layer');
                 if (activeEl) {
-                    activeEl.innerText = `Layer ${activeHardwareLayer} (${layerName})`;
+                    activeEl.innerText = layerName;
                     activeEl.style.color = layerColor;
                 }
 
@@ -998,7 +987,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     const btnName = KEY_NAMES[vk] || `按键 ${hexCode}`;
                     
                     document.getElementById('live-key-code').innerText = hexCode;
-                    document.getElementById('live-key-state').innerText = t.is_pressed ? 'DOWN (按下)' : 'UP (松开)';
+                    document.getElementById('live-key-state').innerText = t.is_pressed ? '按下' : '松开';
                     document.getElementById('live-key-state').style.color = t.is_pressed ? 'var(--accent-cyan)' : 'var(--accent-green)';
                     document.getElementById('live-key-dur').innerText = `${t.duration_ms || 0} ms`;
                     document.getElementById('live-act-type').innerText = `TYPE_${t.action_type || 0}`;
@@ -1041,16 +1030,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         };
 
         function getActionSummaryText(type, mod, key, cons, target_layer) {
-            if (type === 10) return '🔗 [继承默认层]';
+            if (type === 10) return '[继承默认层]';
             if (type === 9) {
                 const tgt = target_layer || 0;
-                let tgtName = `Layer ${tgt}`;
+                let tgtName = tgt === 0 ? '默认层' : `层${tgt}`;
                 if (currentKeymap && currentKeymap.layers && currentKeymap.layers[tgt]) {
                     tgtName = currentKeymap.layers[tgt].name || tgtName;
                 }
-                return `🎚️ [切入: ${tgtName} (自翻转)]`;
+                return `[切入: ${tgtName}]`;
             }
-            if (type === 7) return '🎙️ [语音对讲录音]';
+            if (type === 7) return '[语音对讲录音]';
             if (type === 0 || (!key && !cons && !mod)) return '未映射';
 
             let parts = [];
@@ -1094,29 +1083,28 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const container = document.getElementById('layer-nav-container');
             if (!container) return;
 
-            const typeNames = ['🔒 永久层', '⚡ 一次性层', '⏳ 超时返回'];
+            const typeNames = ['永久层', '一次性层', '超时返回'];
 
             let html = '';
             currentKeymap.layers.forEach((l, idx) => {
                 const isActive = (idx === currentEditingLayer);
                 const isHwActive = (idx === activeHardwareLayer);
                 const htmlColor = hexToHtmlColor(l.color);
-                const icon = LAYER_ICONS[idx] || '📁';
-                const typeText = (idx === 0) ? '🔒 默认基础层' : (l.type === 2 ? `⏳ ${l.timeout || 15}s 超时` : (typeNames[l.type] || ''));
+                const typeText = (idx === 0) ? '默认层' : (l.type === 2 ? `${l.timeout || 15}s 超时` : (typeNames[l.type] || ''));
                 const overrideCount = (idx === 0) ? l.bindings.length : (l.bindings ? l.bindings.filter(b => (b.has_click && b.click_type !== 10) || (b.has_long && b.long_type !== 10) || (b.has_double && b.double_type !== 10)).length : 0);
-                const countBadge = (idx === 0) ? `${overrideCount} 基础键` : (overrideCount > 0 ? `★ ${overrideCount} 键覆盖` : `🔗 全穿透`);
+                const countBadge = (idx === 0) ? `${overrideCount} 基础键` : (overrideCount > 0 ? `${overrideCount} 键覆盖` : `全穿透`);
 
                 html += `
                 <div class="layer-tab-card ${isActive ? 'active' : ''} ${isHwActive ? 'hw-active' : ''}" onclick="switchEditingLayer(${idx})">
                     <div class="layer-tab-header">
                         <span class="layer-tab-title">
                             <span class="layer-color-dot" style="background-color:${htmlColor}; color:${htmlColor};"></span>
-                            <span>${icon} Layer ${idx}</span>
+                            <span>${idx === 0 ? '默认层' : '层 ' + idx}</span>
                         </span>
-                        <span class="layer-live-badge">● 运行中</span>
+                        <span class="layer-live-badge">运行中</span>
                     </div>
                     <div style="font-size:13px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                        ${l.name || ('Layer ' + idx)}
+                        ${l.name || (idx === 0 ? '默认层' : '层' + idx)}
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
                         <span class="layer-tab-desc">${typeText}</span>
@@ -1141,7 +1129,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const tipEl = document.getElementById('layer-status-tip');
 
             if (nameInput) {
-                nameInput.value = layer.name || `Layer ${currentEditingLayer}`;
+                nameInput.value = layer.name || (currentEditingLayer === 0 ? '默认层' : `层${currentEditingLayer}`);
             }
             if (typeSelect) {
                 typeSelect.value = layer.type || 0;
@@ -1159,9 +1147,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
             if (tipEl) {
                 if (currentEditingLayer === 0) {
-                    tipEl.innerHTML = '🏠 <b>默认主层 (Layer 0)</b>：所有上层（Layer 1~4）未单独配置的按键都会自动穿透继承此层的映射规则。';
+                    tipEl.innerHTML = '<b>默认层</b>：其他层未单独配置的按键会自动穿透继承默认层的映射。';
                 } else {
-                    tipEl.innerHTML = `✨ <b>当前正在编辑【Layer ${currentEditingLayer} : ${layer.name}】</b>：带有紫色外发光边框的按键为本层独立覆盖按键；其余普通按键会自动穿透继承 Layer 0。`;
+                    tipEl.innerHTML = `<b>当前编辑：${layer.name || ('层' + currentEditingLayer)}</b>。高亮按键为本层独立覆盖，其余按键自动穿透继承默认层。`;
                 }
             }
         }
@@ -1178,7 +1166,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             normalizeKeymapConfig();
             const layer = currentKeymap.layers[currentEditingLayer];
             if (!layer) return;
-            layer.name = val.trim() || `Layer ${currentEditingLayer}`;
+            layer.name = val.trim() || (currentEditingLayer === 0 ? '默认层' : `层${currentEditingLayer}`);
             renderLayerTabs();
         }
 
@@ -1220,7 +1208,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         async function saveAllLayers() {
             const ok = await saveKeymapToServer();
             if (ok) {
-                showToast('所有 5 个层级配置已成功保存写入 ESP32 Flash！');
+                showToast('层级配置已成功保存写入 Flash');
                 renderLayerTabs();
                 renderLayerCard();
                 updateRemoteVisualTooltips();
@@ -1232,11 +1220,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             normalizeKeymapConfig();
             const layer = currentKeymap.layers[layerIdx];
             if (!layer) return;
-            if (!confirm(`确定要清空【${layer.name}】的所有按键覆盖吗？\n清空后该层所有按键将 100% 穿透继承默认主层 (Layer 0)。`)) return;
+            if (!confirm(`确定要清空【${layer.name}】的所有按键覆盖吗？\n清空后该层所有按键将穿透继承默认层。`)) return;
             layer.bindings = [];
             const ok = await saveKeymapToServer();
             if (ok) {
-                showToast(`【${layer.name}】已恢复全量穿透继承！`);
+                showToast(`【${layer.name}】已恢复穿透继承默认层`);
                 renderLayerTabs();
                 renderLayerCard();
                 updateRemoteVisualTooltips();
@@ -1296,7 +1284,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                 let desc = `【${KEY_NAMES[vk] || hex}】`;
                 if (currentEditingLayer > 0) {
-                    desc += isOverride ? ` (★ Layer ${currentEditingLayer} 独立覆盖)` : ` (🔗 继承 Layer 0 默认层)`;
+                    desc += isOverride ? ` (本层覆盖)` : ` (继承默认层)`;
                 }
 
                 desc += `\n单击: ${getActionSummaryText(effClickType, effClickMod, effClickKey, effClickCons, effClickLayer)}`;
@@ -1358,14 +1346,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             let html = '';
             currentKeymap.layers.forEach((l, idx) => {
                 const isSel = (idx === selectedTargetLayer);
-                const htmlColor = hexToHtmlColor(l.color);
-                const icon = LAYER_ICONS[idx] || '📁';
                 html += `
                 <button type="button" class="target-layer-btn" data-layer="${idx}" 
                     style="padding:8px 6px; border-radius:10px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.15s; background:${isSel ? 'rgba(6,182,212,0.2)' : '#151d2a'}; border:2px solid ${isSel ? 'var(--accent-cyan)' : 'var(--border-color)'}; color:${isSel ? 'var(--accent-cyan)' : '#fff'}; display:flex; flex-direction:column; align-items:center; gap:2px;"
                     onclick="selectTargetLayer(${idx})">
-                    <span style="font-size:16px;">${icon}</span>
-                    <span>Layer ${idx}</span>
+                    <span>${idx === 0 ? '默认层' : '层 ' + idx}</span>
                     <span style="font-size:10px; color:var(--text-muted); font-weight:normal; max-width:70px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${l.name || ''}</span>
                 </button>`;
             });
@@ -1460,7 +1445,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (tab === 'click') {
                 longHeader.style.display = 'none';
                 doubleHeader.style.display = 'none';
-                actionLabel.innerText = '🎯 单击触发动作模式 (Click Action Mode)';
+                actionLabel.innerText = '单击触发动作模式';
                 mode = editingBinding.click_type !== undefined ? editingBinding.click_type : 2;
                 mod = editingBinding.click_mod || 0;
                 key = editingBinding.click_key || 0;
@@ -1469,7 +1454,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             } else if (tab === 'long') {
                 longHeader.style.display = 'block';
                 doubleHeader.style.display = 'none';
-                actionLabel.innerText = '⏱️ 长按触发动作模式 (Long Press Action Mode)';
+                actionLabel.innerText = '长按触发动作模式';
                 document.getElementById('toggle-enable-long').checked = !!editingBinding.has_long;
                 document.getElementById('slider-long-ms').value = editingBinding.long_ms || 600;
                 document.getElementById('label-long-ms').innerText = `${editingBinding.long_ms || 600}ms`;
@@ -1481,7 +1466,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             } else if (tab === 'double') {
                 longHeader.style.display = 'none';
                 doubleHeader.style.display = 'block';
-                actionLabel.innerText = '⚡ 双击触发动作模式 (Double Click Action Mode)';
+                actionLabel.innerText = '双击触发动作模式';
                 document.getElementById('toggle-enable-double').checked = !!editingBinding.has_double;
                 document.getElementById('slider-double-ms').value = editingBinding.double_ms || 250;
                 document.getElementById('label-double-ms').innerText = `${editingBinding.double_ms || 250}ms`;
@@ -1542,22 +1527,22 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 let curCode = parseInt(document.getElementById('adv-code').value) || 0;
 
                 if (mode === 4) {
-                    if (inst) inst.innerHTML = '🔊 <b>多媒体控制模式</b>：请在下方【快捷选择与键码微调】下拉框中选择具体的控制功能';
+                    if (inst) inst.innerHTML = '<b>多媒体控制模式</b>：在下方下拉框中选择具体的控制功能';
                     let curCons = curCode >= 500 ? curCode : 545;
                     renderTriggerView(4, 0, 0, curCons);
                     if (quickSelect) quickSelect.value = `c:0:${curCons}`;
                 } else if (mode === 1) {
-                    if (inst) inst.innerHTML = '🎯 <b>单次点按模式</b>：按下遥控器发送一次快捷键（敲击键盘直接录制，如 Win+D, Alt+Tab, F5 等）';
+                    if (inst) inst.innerHTML = '<b>单次点按模式</b>：按下按键发送一次按键或组合快捷键（敲击键盘直接录制）';
                     let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x28;
                     renderTriggerView(1, curMod, curKey, 0);
                     startKeyboardRecording();
                 } else if (mode === 2) {
-                    if (inst) inst.innerHTML = '⚡ <b>键盘直通模式</b>：按住遥控器电脑键盘持续按住，支持系统级原生连发（敲击键盘直接录制，如 Space, Enter, 方向键等）';
+                    if (inst) inst.innerHTML = '<b>键盘直通模式</b>：按住按键时持续发送（敲击键盘直接录制）';
                     let curKey = (curCode > 0 && curCode < 500) ? curCode : 0x2C;
                     renderTriggerView(2, curMod, curKey, 0);
                     startKeyboardRecording();
                 } else if (mode === 7) {
-                    if (inst) inst.innerHTML = '🎙️ <b>语音输入法快捷键</b>：敲击键盘录制录音时保持按下的快捷键（如 Alt+, 微信输入法 或 Win+H 微软听写）';
+                    if (inst) inst.innerHTML = '<b>语音按键快捷键</b>：敲击键盘录制录音时发送的快捷键（如 Alt+, 或 Win+H）';
                     let curKey = (curCode > 0 && curCode < 500) ? curCode : 54;
                     renderTriggerView(7, curMod || 64, curKey, 0);
                     startKeyboardRecording();
@@ -1598,21 +1583,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             if (type === 9) {
                 const tgt = selectedTargetLayer || 0;
-                let tgtName = `Layer ${tgt}`;
+                let tgtName = tgt === 0 ? '默认层' : `层${tgt}`;
                 if (currentKeymap && currentKeymap.layers && currentKeymap.layers[tgt]) {
                     tgtName = currentKeymap.layers[tgt].name || tgtName;
                 }
-                display.innerHTML = `<span class="kbd-chip" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">🎚️ 切入 Layer ${tgt} (${tgtName}) [自翻转]</span>`;
+                display.innerHTML = `<span class="kbd-chip" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">切入 ${tgtName}</span>`;
                 return;
             }
 
             if (type === 10) {
-                display.innerHTML = `<span class="kbd-chip" style="border-color:#93c5fd; color:#93c5fd;">🔗 穿透继承 Layer 0 (默认主层)</span>`;
+                display.innerHTML = `<span class="kbd-chip" style="border-color:#93c5fd; color:#93c5fd;">继承默认层</span>`;
                 return;
             }
 
             if (type === 0 || (!key && !cons && !mod)) {
-                display.innerHTML = '<span style="color: var(--text-muted); font-size: 15px; font-weight: normal;">未设置（点击此处敲键盘录制，或从下方快速选择）</span>';
+                display.innerHTML = '<span style="color: var(--text-muted); font-size: 14px; font-weight: normal;">未设置（敲击键盘录制，或在下方选择）</span>';
                 return;
             }
 
@@ -1624,19 +1609,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
             if (cons > 0) {
                 const consMap = {
-                    0x00E9: '🔊 音量 +', 233: '🔊 音量 +', 545: '🔊 音量 +',
-                    0x00EA: '🔉 音量 -', 234: '🔉 音量 -', 546: '🔉 音量 -',
-                    0x00E2: '🔇 静音',   226: '🔇 静音',   547: '🔇 静音',
-                    0x00CD: '⏯️ 播放/暂停', 205: '⏯️ 播放/暂停', 516: '⏯️ 播放/暂停',
-                    0x00B5: '⏭️ 下一曲', 181: '⏭️ 下一曲', 537: '⏭️ 下一曲',
-                    0x00B6: '⏮️ 上一曲', 182: '⏮️ 上一曲', 538: '⏮️ 上一曲',
-                    0x00B7: '⏹️ 停止',   183: '⏹️ 停止',
-                    0x0032: '🌙 系统休眠', 50: '🌙 系统休眠', 530: '🌙 系统休眠',
-                    0x0030: '⏻ 电源开关', 48: '⏻ 电源开关',
-                    0x0224: '🔙 网页返回', 548: '🔙 网页返回', 558: '🔙 网页返回',
-                    0x0223: '⌂ 网页主页', 547: '⌂ 网页主页', 557: '⌂ 网页主页',
-                    0x0225: '🔜 网页前进', 549: '🔜 网页前进',
-                    0x0192: '🧮 计算器',  402: '🧮 计算器'
+                    0x00E9: '音量+', 233: '音量+', 545: '音量+',
+                    0x00EA: '音量-', 234: '音量-', 546: '音量-',
+                    0x00E2: '静音',  226: '静音', 547: '静音',
+                    0x00CD: '播放/暂停', 205: '播放/暂停', 516: '播放/暂停',
+                    0x00B5: '下一曲', 181: '下一曲', 537: '下一曲',
+                    0x00B6: '上一曲', 182: '上一曲', 538: '上一曲',
+                    0x00B7: '停止',  183: '停止',
+                    0x0032: '休眠',  50: '休眠', 530: '休眠',
+                    0x0030: '电源',  48: '电源',
+                    0x0224: '返回',  548: '返回', 558: '返回',
+                    0x0223: '主页',  547: '主页', 557: '主页',
+                    0x0225: '前进',  549: '前进',
+                    0x0192: '计算器', 402: '计算器'
                 };
                 chips.push(consMap[cons] || `多媒体 0x${cons.toString(16).toUpperCase()}`);
             } else if (key > 0) {
@@ -1731,8 +1716,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const doubleLabel = document.getElementById('label-double-ms');
             if (doubleLabel) doubleLabel.innerText = `${editingBinding.double_ms || 250}ms`;
 
-            const layerPrefix = currentEditingLayer === 0 ? '' : `【Layer ${currentEditingLayer}: ${curLayer.name}】`;
-            document.getElementById('modal-title').innerText = (isVoice && currentEditingLayer === 0) ? '设置 语音键 (Voice) 呼出快捷键' : `${layerPrefix}设置 ${keyName} 映射`;
+            const layerPrefix = currentEditingLayer === 0 ? '' : `【${curLayer.name || ('层' + currentEditingLayer)}】`;
+            document.getElementById('modal-title').innerText = (isVoice && currentEditingLayer === 0) ? '设置语音键快捷键' : `${layerPrefix}设置 ${keyName} 映射`;
             document.getElementById('modal-vk-badge').innerText = '0x' + searchVk.toString(16).toUpperCase().padStart(2, '0');
             document.getElementById('quick-optgroup-media').style.display = (isVoice && currentEditingLayer === 0) ? 'none' : 'block';
 
@@ -1854,7 +1839,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         editingBinding.click_type = 10;
                         editingBinding.has_click = true;
                     }
-                    showToast('已将单击设置为【穿透继承默认层】');
+                    showToast('已将单击设置为继承默认层');
                 } else {
                     renderTriggerView(0, 0, 0, 0);
                     if (editingBinding) editingBinding.has_click = false;
@@ -1912,17 +1897,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             const ok = await saveKeymapToServer();
             if (ok) {
                 closeRemapModal();
-                showToast(`按键映射已保存至【${curLayer.name || ('Layer ' + currentEditingLayer)}】！`);
+                showToast(`按键映射已保存至【${curLayer.name || (currentEditingLayer === 0 ? '默认层' : '层' + currentEditingLayer)}】`);
                 renderLayerTabs();
                 updateRemoteVisualTooltips();
             }
         }
 
         async function resetAllKeymaps() {
-            if (!confirm('确定要将所有 5 个层级的按键映射与属性恢复为出厂默认值吗？')) return;
+            if (!confirm('确定要将所有层级的按键映射与属性恢复为默认值吗？')) return;
             await fetch('/api/keymap/reset', { method: 'POST' });
             await loadKeymap();
-            showToast('已恢复出厂默认层级映射！');
+            showToast('已恢复出厂默认层级映射');
         }
 
         async function scanBleDevices() {
@@ -1965,7 +1950,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 let html = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">';
                 d.networks.forEach(net => {
                     if (net.ssid) {
-                        html += `<button class="btn btn-outline" style="font-size:12px; padding:6px 12px;" onclick="selectWifi('${net.ssid}')">📶 ${net.ssid} (${net.rssi}dBm)</button>`;
+                        html += `<button class="btn btn-outline" style="font-size:12px; padding:6px 12px;" onclick="selectWifi('${net.ssid}')">${net.ssid} (${net.rssi}dBm)</button>`;
                     }
                 });
                 html += '</div>';
@@ -2043,13 +2028,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (!editor || !badge) return false;
             try {
                 JSON.parse(editor.value);
-                badge.innerHTML = '🟢 JSON 格式有效';
+                badge.innerHTML = 'JSON 格式有效';
                 badge.style.background = 'rgba(16,185,129,0.2)';
                 badge.style.color = '#34d399';
                 badge.style.borderColor = 'rgba(16,185,129,0.4)';
                 return true;
             } catch(e) {
-                badge.innerHTML = '🔴 ' + e.message;
+                badge.innerHTML = e.message;
                 badge.style.background = 'rgba(239,68,68,0.2)';
                 badge.style.color = '#f87171';
                 badge.style.borderColor = 'rgba(239,68,68,0.4)';
@@ -2141,7 +2126,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         }
 
         async function resetNvsFactory() {
-            if (!confirm('⚠️ 警告：此操作将清空 ESP32 内部的所有 NVS 持久化数据（包括 Wi-Fi 密码、遥控器绑定、自定义按键），并自动重启！\n\n确定要执行出厂重置吗？')) {
+            if (!confirm('警告：此操作将清空 ESP32 内部的所有 NVS 持久化数据（包括 Wi-Fi 密码、遥控器绑定、自定义按键），并自动重启！\n\n确定要执行出厂重置吗？')) {
                 return;
             }
             try {

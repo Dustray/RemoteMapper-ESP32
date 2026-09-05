@@ -80,7 +80,7 @@ typedef enum {
 } layer_type_t;
 
 typedef struct {
-    char          name[MAX_LAYER_NAME_LEN]; // e.g. "默认主层", "影音娱乐"
+    char          name[MAX_LAYER_NAME_LEN]; // e.g. "默认层", "层1"
     layer_type_t  type;                     // LAYER_TYPE_*
     uint16_t      timeout_sec;              // 3 ~ 300s (for LAYER_TYPE_TIMEOUT)
     uint32_t      led_color;                // RGB 0x00RRGGBB (e.g. 0x00FF00)
