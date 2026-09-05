@@ -110,6 +110,8 @@ String nvs_manager_dump_json(void) {
     if (prefs.begin("wifi_conf", true)) {
         if (doc["wifi_conf"].isNull()) doc["wifi_conf"].to<JsonObject>();
         JsonObject wifiObj = doc["wifi_conf"].as<JsonObject>();
+        if (prefs.isKey("ssid"))     wifiObj["ssid"]     = prefs.getString("ssid", "");
+        if (prefs.isKey("pass"))     wifiObj["pass"]     = prefs.getString("pass", "");
         if (prefs.isKey("sta_ssid")) wifiObj["sta_ssid"] = prefs.getString("sta_ssid", "");
         if (prefs.isKey("sta_pass")) wifiObj["sta_pass"] = prefs.getString("sta_pass", "");
         if (prefs.isKey("ap_ssid"))  wifiObj["ap_ssid"]  = prefs.getString("ap_ssid", "");

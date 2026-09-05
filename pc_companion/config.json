@@ -15,14 +15,14 @@
         "enabled": true
     },
     "F16": {
-        "name": "运行自定义 Python 任务",
-        "command": "python scripts/demo_task.py",
-        "enabled": false
+        "name": "亮度增加",
+        "command": "D:\\tool\\controlmymonitor\\ControlMyMonitor.exe /ChangeValue Primary 10 10",
+        "enabled": true
     },
     "F17": {
-        "name": "运行自定义批处理",
-        "command": "scripts/demo_action.bat",
-        "enabled": false
+        "name": "亮度减小",
+        "command": "D:\\tool\\controlmymonitor\\ControlMyMonitor.exe /ChangeValue Primary 10 -10",
+        "enabled": true
     },
     "F19": {
         "name": "自定义槽位 7",

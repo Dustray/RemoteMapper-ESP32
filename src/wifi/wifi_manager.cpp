@@ -6,8 +6,6 @@
 #include <Preferences.h>
 #include <ArduinoJson.h>
 
-#define AP_SSID         "RemoteMapper-AP"
-#define AP_PASS         ""                  // Open network for quick onboarding
 #define DNS_PORT        53
 #define MDNS_HOSTNAME   "remotemapper"
 
@@ -23,14 +21,20 @@ void wifi_manager_init(void) {
     s_prefs.begin("wifi_conf", false);
     String sta_ssid = s_prefs.getString("ssid", "");
     String sta_pass = s_prefs.getString("pass", "");
+    String ap_pass  = s_prefs.getString("ap_pass", "");
 
     // Set Wi-Fi Mode
     WiFi.mode(WIFI_AP_STA);
 
     // 1. Configure and start AP Mode
     WiFi.softAPConfig(s_ap_ip, s_ap_ip, s_ap_netmask);
-    WiFi.softAP(AP_SSID, AP_PASS);
-    app_log("WIFI", "AP Started: %s (IP: 192.168.4.1)", AP_SSID);
+    if (ap_pass.length() >= 8) {
+        WiFi.softAP(AP_SSID, ap_pass.c_str());
+        app_log("WIFI", "AP Started: %s (WPA2-PSK, IP: 192.168.4.1)", AP_SSID);
+    } else {
+        WiFi.softAP(AP_SSID, "");
+        app_log("WIFI", "AP Started: %s (Open Network, IP: 192.168.4.1)", AP_SSID);
+    }
 
     // 2. Start Captive Portal DNS
     s_dns_server.setErrorReplyCode(DNSReplyCode::NoError);
@@ -121,3 +125,27 @@ bool wifi_manager_save_sta_config(const String& ssid, const String& password) {
     WiFi.begin(ssid.c_str(), password.c_str());
     return true;
 }
+
+String wifi_manager_get_ap_pass(void) {
+    return s_prefs.getString("ap_pass", "");
+}
+
+bool wifi_manager_save_ap_config(const String& ap_password) {
+    String p = ap_password;
+    p.trim();
+    if (p.length() > 0 && p.length() < 8) {
+        return false;
+    }
+    s_prefs.putString("ap_pass", p);
+
+    WiFi.softAPConfig(s_ap_ip, s_ap_ip, s_ap_netmask);
+    if (p.length() >= 8) {
+        WiFi.softAP(AP_SSID, p.c_str());
+        app_log("WIFI", "AP reconfigured: %s (WPA2-PSK)", AP_SSID);
+    } else {
+        WiFi.softAP(AP_SSID, "");
+        app_log("WIFI", "AP reconfigured: %s (Open Network)", AP_SSID);
+    }
+    return true;
+}
+

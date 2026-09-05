@@ -310,7 +310,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="stat-card">
                 <div class="stat-title">Wi-Fi 局域网 IP</div>
                 <div class="stat-val" id="stat-sta-ip">192.168.2.179</div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">热点: 192.168.4.1</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="stat-ap-status">热点: 192.168.4.1</div>
             </div>
             <div class="stat-card">
                 <div class="stat-title">音频流水线状态</div>
@@ -582,12 +582,33 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <button class="btn" style="width: 100%; margin-top:16px;" onclick="saveWifi()">保存并连接 Wi-Fi</button>
                 </div>
 
-                <div class="card">
-                    <div class="card-header"><span>系统控制</span></div>
-                    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
-                        当前固件支持 UAC 1.0 USB 麦克风录音设备与标准 HID 键盘/多媒体复合注入。
-                    </p>
-                    <button class="btn btn-danger" style="width: 100%;" onclick="restartDevice()">重启设备</button>
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="card">
+                        <div class="card-header">
+                            <span>AP 热点配置</span>
+                            <span id="ap-badge" style="font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.3);">开放热点</span>
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">热点名称</label>
+                            <input type="text" value="RemoteMapper-AP" disabled style="width:100%; background:#070a10; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:var(--text-muted); font-size:14px; outline:none;">
+                        </div>
+                        <div class="form-group" style="margin-top:14px;">
+                            <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">热点密码</label>
+                            <input type="password" id="ap-pass" placeholder="留空为开放热点，设置密码需至少8位" style="width:100%; background:#0b0f17; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; outline:none;">
+                        </div>
+                        <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+                            默认密码为空（开放热点）。设置密码需 8~63 位，保存后将自动启用 WPA2 加密保护。
+                        </div>
+                        <button class="btn" style="width: 100%; margin-top:14px;" onclick="saveApConfig()">保存 AP 配置</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header"><span>系统控制</span></div>
+                        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+                            当前固件支持 UAC 1.0 USB 麦克风录音设备与标准 HID 键盘/多媒体复合注入。
+                        </p>
+                        <button class="btn btn-danger" style="width: 100%;" onclick="restartDevice()">重启设备</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -958,6 +979,32 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     document.getElementById('stat-ble-state').innerText = '扫描重连中...';
                     document.getElementById('stat-ble-state').style.color = 'var(--accent-orange)';
                     document.getElementById('stat-ble-name').innerText = bleInfo.bound_mac ? `已绑定: ${bleInfo.bound_mac}` : '未绑定遥控器';
+                }
+
+                const apStatEl = document.getElementById('stat-ap-status');
+                if (apStatEl && d.ap_ip) {
+                    apStatEl.innerText = `热点: ${d.ap_ip} (${d.ap_secured ? 'WPA2' : '开放'})`;
+                }
+
+                if (d.ap_pass !== undefined) {
+                    const apInput = document.getElementById('ap-pass');
+                    if (apInput && document.activeElement !== apInput) {
+                        apInput.value = d.ap_pass;
+                    }
+                    const apBadge = document.getElementById('ap-badge');
+                    if (apBadge) {
+                        if (d.ap_secured) {
+                            apBadge.innerText = 'WPA2 加密';
+                            apBadge.style.color = '#34d399';
+                            apBadge.style.borderColor = 'rgba(16,185,129,0.4)';
+                            apBadge.style.background = 'rgba(16,185,129,0.15)';
+                        } else {
+                            apBadge.innerText = '开放热点';
+                            apBadge.style.color = 'var(--accent-cyan)';
+                            apBadge.style.borderColor = 'rgba(6,182,212,0.3)';
+                            apBadge.style.background = 'rgba(6,182,212,0.15)';
+                        }
+                    }
                 }
             } catch(e){}
         }
@@ -1984,6 +2031,30 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             if (!ssid) return alert('请输入 Wi-Fi 名称');
             await fetch('/api/wifi/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid, pass }) });
             alert('Wi-Fi 配置已保存，ESP32 正在尝试连接！');
+        }
+
+        async function saveApConfig() {
+            const ap_pass = document.getElementById('ap-pass').value.trim();
+            if (ap_pass.length > 0 && ap_pass.length < 8) {
+                alert('AP 热点密码至少需要 8 位字符（留空表示无密码开放热点）');
+                return;
+            }
+            try {
+                const res = await fetch('/api/wifi/ap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ap_pass })
+                });
+                const d = await res.json();
+                if (res.ok) {
+                    showToast(ap_pass ? 'AP 密码已保存并启用 WPA2 加密' : 'AP 密码已清空，恢复为开放热点');
+                    fetchStatus();
+                } else {
+                    alert(d.message || d.error || '保存失败');
+                }
+            } catch(e) {
+                alert('保存失败: ' + e.message);
+            }
         }
 
         async function restartDevice() {

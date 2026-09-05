@@ -32,6 +32,10 @@ static void handle_status() {
     doc["ap_ip"] = wifi_manager_get_ap_ip();
     doc["sta_ip"] = wifi_manager_get_sta_ip();
     doc["sta_connected"] = wifi_manager_is_sta_connected();
+    doc["ap_ssid"] = AP_SSID;
+    String ap_pass = wifi_manager_get_ap_pass();
+    doc["ap_secured"] = (ap_pass.length() >= 8);
+    doc["ap_pass"] = ap_pass;
 
     String out;
     serializeJson(doc, out);
@@ -75,6 +79,33 @@ static void handle_wifi_config() {
 
     wifi_manager_save_sta_config(ssid, pass);
     s_server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+static void handle_wifi_ap_config() {
+    if (!s_server.hasArg("plain")) {
+        s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
+        return;
+    }
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, s_server.arg("plain"));
+    if (err) {
+        s_server.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+        return;
+    }
+
+    String ap_pass = doc["ap_pass"] | "";
+    ap_pass.trim();
+
+    if (ap_pass.length() > 0 && ap_pass.length() < 8) {
+        s_server.send(400, "application/json", "{\"error\":\"password_too_short\",\"message\":\"AP 密码至少需要 8 位字符，或留空设置为开放热点\"}");
+        return;
+    }
+
+    if (wifi_manager_save_ap_config(ap_pass)) {
+        s_server.send(200, "application/json", "{\"status\":\"ok\",\"secured\":" + String(ap_pass.length() >= 8 ? "true" : "false") + "}");
+    } else {
+        s_server.send(500, "application/json", "{\"error\":\"save_failed\"}");
+    }
 }
 
 static void handle_keymap_get() {
@@ -205,6 +236,7 @@ void web_server_init(void) {
     s_server.on("/api/logs/clear", HTTP_POST, handle_logs_clear);
     s_server.on("/api/wifi/scan", HTTP_GET, handle_wifi_scan);
     s_server.on("/api/wifi/config", HTTP_POST, handle_wifi_config);
+    s_server.on("/api/wifi/ap", HTTP_POST, handle_wifi_ap_config);
     s_server.on("/api/keymap", HTTP_GET, handle_keymap_get);
     s_server.on("/api/keymap/save", HTTP_POST, handle_keymap_save);
     s_server.on("/api/keymap/reset", HTTP_POST, handle_keymap_reset);
