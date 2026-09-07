@@ -491,7 +491,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="card">
                 <div class="card-header">
                     <span>蓝牙设备配对</span>
-                    <button class="btn" onclick="scanBleDevices()">扫描蓝牙设备</button>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:var(--text-muted);">
+                            <input type="checkbox" id="ble-hide-unnamed" checked onchange="scanBleDevices()">
+                            隐藏未命名设备
+                        </label>
+                        <button class="btn" onclick="scanBleDevices()">扫描蓝牙设备</button>
+                    </div>
                 </div>
                 <div id="ble-dev-list" style="margin-top: 14px;">点击上方按钮扫描附近的蓝牙遥控器...</div>
             </div>
@@ -1957,18 +1963,40 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             showToast('已恢复出厂默认层级映射');
         }
 
+        function isUnnamedBleDevice(name) {
+            return !name || name === 'Unnamed BLE Device';
+        }
+
+        function shouldHideUnnamedBleDevices() {
+            const cb = document.getElementById('ble-hide-unnamed');
+            return cb ? cb.checked : true;
+        }
+
         async function scanBleDevices() {
             const container = document.getElementById('ble-dev-list');
             container.innerHTML = '正在扫描周围蓝牙设备 (4秒)...';
             try {
                 const res = await fetch('/api/ble/scan');
                 const d = await res.json();
-                if (!d.devices || d.devices.length === 0) {
-                    container.innerHTML = '<div style="color:var(--text-muted);">未发现附近设备，请确保遥控器处于配对广播状态。</div>';
+                const hideUnnamed = shouldHideUnnamedBleDevices();
+                const visibleDevices = hideUnnamed
+                    ? (d.devices || []).filter(dev => !isUnnamedBleDevice(dev.name))
+                    : (d.devices || []);
+
+                if (visibleDevices.length === 0) {
+                    const hint = hideUnnamed && (d.devices || []).length > 0
+                        ? '<div style="color:var(--text-muted);">附近设备中未发现命名设备，请取消勾选"隐藏未命名设备"查看全部。</div>'
+                        : '<div style="color:var(--text-muted);">未发现附近设备，请确保遥控器处于配对广播状态。</div>';
+                    container.innerHTML = hint;
                     return;
                 }
-                let html = '<div style="display:grid; gap:10px;">';
-                d.devices.forEach(dev => {
+
+                const totalInfo = (d.devices || []).length !== visibleDevices.length
+                    ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:8px;">显示 ${visibleDevices.length} / ${d.devices.length} 个设备</div>`
+                    : '';
+
+                let html = totalInfo + '<div style="display:grid; gap:10px;">';
+                visibleDevices.forEach(dev => {
                     html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#0b0f17; padding:12px; border-radius:8px; border:1px solid #243247;">
                         <div><b>${dev.name}</b> <span style="font-size:12px; color:var(--text-muted); font-family:monospace;">(${dev.mac}) RSSI: ${dev.rssi}dBm</span></div>
                         <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="connectMac('${dev.mac}')">连接</button>

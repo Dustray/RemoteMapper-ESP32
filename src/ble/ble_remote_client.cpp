@@ -15,6 +15,7 @@ static NimBLEClient*                   s_client = nullptr;
 static NimBLERemoteCharacteristic*     s_char_cmd = nullptr;
 static NimBLERemoteCharacteristic*     s_char_aud = nullptr;
 static NimBLERemoteCharacteristic*     s_char_ctl = nullptr;
+static NimBLEAdvertisedDeviceCallbacks* s_adv_callbacks = nullptr;
 
 static Preferences                     s_ble_prefs;
 static String                          s_bound_mac = "";
@@ -512,8 +513,11 @@ void ble_remote_init(void) {
     NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
 
     NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks());
-    
+    if (s_adv_callbacks == nullptr) {
+        s_adv_callbacks = new AdvertisedDeviceCallbacks();
+    }
+    pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
+
     // Start continuous fast scan immediately (instant catch when remote advertises)
     start_scan();
 }
@@ -583,8 +587,33 @@ void ble_remote_trigger_reconnect(void) {
 String ble_remote_scan_devices_json(void) {
     app_log("BLE", "Performing full 4s BLE scan for nearby devices...");
     NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->stop();
-    NimBLEScanResults results = pScan->start(4, false);
+
+    // Temporarily disable advertisement callbacks so our continuous-scan logic
+    // does not try to connect while we are doing a manual foreground scan.
+    pScan->setAdvertisedDeviceCallbacks(nullptr, false);
+
+    // Ensure previous scan is fully stopped and result cache is cleared
+    if (pScan->isScanning()) {
+        pScan->stop();
+        uint32_t t0 = millis();
+        while (pScan->isScanning() && (millis() - t0) < 300) {
+            delay(1);
+        }
+    }
+    delay(50); // extra settle time for NimBLE host to release the scanner
+    pScan->clearResults();
+
+    NimBLEScanResults results;
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (!pScan->isScanning()) {
+            results = pScan->start(4, false);
+            if (results.getCount() >= 0) break;
+        }
+        app_log("BLE", "Scan start failed or returned stale data, retrying...");
+        pScan->stop();
+        delay(100);
+        pScan->clearResults();
+    }
 
     JsonDocument doc;
     JsonArray arr = doc["devices"].to<JsonArray>();
@@ -603,8 +632,16 @@ String ble_remote_scan_devices_json(void) {
     String out;
     serializeJson(doc, out);
 
+    // Clear cached results so the next scan starts fresh
+    pScan->clearResults();
+
     // Resume continuous background scan if not connected
     if (s_ble_state < BLE_STATE_CONNECTED && !s_do_connect) {
+        // Re-install advertisement callbacks before restarting background scan
+        if (s_adv_callbacks == nullptr) {
+            s_adv_callbacks = new AdvertisedDeviceCallbacks();
+        }
+        pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
         start_scan();
     }
 

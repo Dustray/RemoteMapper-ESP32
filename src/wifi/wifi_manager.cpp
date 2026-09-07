@@ -96,6 +96,10 @@ int8_t wifi_manager_get_sta_rssi(void) {
 
 String wifi_manager_scan_json(void) {
     app_log("WIFI", "Scanning for 2.4GHz Wi-Fi networks...");
+
+    // Clean up any stale previous scan results to avoid stale/empty reads
+    WiFi.scanDelete();
+
     int n = WiFi.scanNetworks();
     JsonDocument doc;
     JsonArray arr = doc["networks"].to<JsonArray>();
