@@ -297,19 +297,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <div class="logo">RemoteMapper</div>
                 <span class="badge">ESP32-S3 Hardware Bridge</span>
             </div>
-            <div id="top-status" style="font-size: 13px; color: var(--text-muted);">正在连接硬件...</div>
+            <div id="top-status" style="font-size: 13px; color: var(--text-muted);">正在加载状态...</div>
         </header>
 
         <!-- System Overview Cards -->
         <div class="grid-4">
             <div class="stat-card">
                 <div class="stat-title">蓝牙遥控器连接状态</div>
-                <div class="stat-val" id="stat-ble-state" style="color: var(--accent-green);">已连接</div>
+                <div class="stat-val" id="stat-ble-state" style="color: var(--accent-orange);">未连接</div>
                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="stat-ble-name">小米蓝牙语音遥控器</div>
             </div>
             <div class="stat-card">
                 <div class="stat-title">Wi-Fi 局域网 IP</div>
-                <div class="stat-val" id="stat-sta-ip">192.168.2.179</div>
+                <div class="stat-val" id="stat-sta-ip">未连接</div>
                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="stat-ap-status">热点: 192.168.4.1</div>
             </div>
             <div class="stat-card">
@@ -508,7 +508,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="card">
                 <div class="card-header">
                     <span>实时运行日志</span>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" id="log-pause" onchange="toggleLogPause()">
+                            暂停自动刷新
+                        </label>
                         <button class="btn btn-outline" style="font-size: 12px;" onclick="refreshLogs()">刷新</button>
                         <button class="btn btn-outline" style="font-size: 12px;" onclick="clearLogs()">清空</button>
                     </div>
@@ -2008,8 +2012,22 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         }
 
         async function connectMac(mac) {
-            const res = await fetch('/api/ble/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mac }) });
-            alert('正在连接目标蓝牙遥控器，请查看运行日志...');
+            try {
+                const res = await fetch('/api/ble/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mac }) });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    alert('连接请求失败: ' + (d.error || `HTTP ${res.status}`));
+                    return;
+                }
+                const d = await res.json();
+                if (d.status === 'connected') {
+                    alert('已发送连接请求，正在配对目标蓝牙遥控器，请查看运行日志...');
+                } else {
+                    alert('连接请求被拒绝: ' + (d.status || 'unknown'));
+                }
+            } catch(e) {
+                alert('连接请求发送失败: ' + e.message);
+            }
         }
 
         async function scanWifiNetworks() {
@@ -2038,14 +2056,27 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             document.getElementById('wifi-pass').focus();
         }
 
+        let s_logAutoPaused = false;
         async function refreshLogs() {
+            if (s_logAutoPaused) return;
             try {
                 const res = await fetch('/api/logs');
                 const d = await res.json();
                 const terminal = document.getElementById('log-terminal');
-                terminal.innerText = d.logs.join('\n');
-                terminal.scrollTop = terminal.scrollHeight;
+                const text = d.logs.join('\n');
+                // Preserve user text selection when content hasn't changed.
+                if (terminal.innerText !== text) {
+                    terminal.innerText = text;
+                }
+                // Only auto-scroll if user is not actively selecting text.
+                const sel = window.getSelection();
+                if (sel && sel.toString().length === 0) {
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
             } catch(e){}
+        }
+        function toggleLogPause() {
+            s_logAutoPaused = document.getElementById('log-pause').checked;
         }
 
         async function clearLogs() {

@@ -57,13 +57,20 @@ static void handle_wifi_scan() {
     s_server.send(200, "application/json", json);
 }
 
+static String get_request_body() {
+    if (s_server.hasArg("plain")) return s_server.arg("plain");
+    if (s_server.args() > 0) return s_server.arg(0);
+    return "";
+}
+
 static void handle_wifi_config() {
-    if (!s_server.hasArg("plain")) {
+    String body = get_request_body();
+    if (body.length() == 0) {
         s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
         return;
     }
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, s_server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, body);
     if (err) {
         s_server.send(400, "application/json", "{\"error\":\"invalid_json\"}");
         return;
@@ -82,12 +89,13 @@ static void handle_wifi_config() {
 }
 
 static void handle_wifi_ap_config() {
-    if (!s_server.hasArg("plain")) {
+    String body = get_request_body();
+    if (body.length() == 0) {
         s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
         return;
     }
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, s_server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, body);
     if (err) {
         s_server.send(400, "application/json", "{\"error\":\"invalid_json\"}");
         return;
@@ -114,11 +122,12 @@ static void handle_keymap_get() {
 }
 
 static void handle_keymap_save() {
-    if (!s_server.hasArg("plain")) {
+    String body = get_request_body();
+    if (body.length() == 0) {
         s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
         return;
     }
-    bool ok = key_config_from_json(&g_key_engine, s_server.arg("plain"));
+    bool ok = key_config_from_json(&g_key_engine, body);
     if (ok) {
         key_config_storage_save(&g_key_engine);
         s_server.send(200, "application/json", "{\"status\":\"saved\"}");
@@ -144,12 +153,13 @@ static void handle_ble_scan() {
 }
 
 static void handle_ble_connect() {
-    if (!s_server.hasArg("plain")) {
+    String body = get_request_body();
+    if (body.length() == 0) {
         s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
         return;
     }
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, s_server.arg("plain"));
+    DeserializationError err = deserializeJson(doc, body);
     if (err) {
         s_server.send(400, "application/json", "{\"error\":\"invalid_json\"}");
         return;
@@ -194,12 +204,13 @@ static void handle_nvs_get() {
 }
 
 static void handle_nvs_save() {
-    if (!s_server.hasArg("plain")) {
+    String body = get_request_body();
+    if (body.length() == 0) {
         s_server.send(400, "application/json", "{\"error\":\"missing_body\"}");
         return;
     }
     String err;
-    bool ok = nvs_manager_apply_json(s_server.arg("plain"), err);
+    bool ok = nvs_manager_apply_json(body, err);
     if (ok) {
         s_server.send(200, "application/json", "{\"status\":\"saved\",\"message\":\"NVS配置已成功更新并写入Flash！\"}");
     } else {

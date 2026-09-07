@@ -25,6 +25,7 @@ static String                          s_connected_mac = "";
 
 // Asynchronous Connect Request state
 static bool                            s_do_connect = false;
+static bool                            s_manual_connect_requested = false;
 static NimBLEAdvertisedDevice*         s_pending_adv_device = nullptr;
 static String                          s_pending_mac = "";
 static uint8_t                         s_pending_addr_type = BLE_ADDR_RANDOM;
@@ -241,7 +242,7 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
                     (int)advertisedDevice->getAddress().getType());
         }
 
-        if (s_ble_state <= BLE_STATE_SCANNING && is_target_remote(advertisedDevice) && !s_do_connect) {
+        if (s_ble_state <= BLE_STATE_SCANNING && is_target_remote(advertisedDevice) && !s_do_connect && !s_manual_connect_requested) {
             app_log("BLE", "Matching Target Remote: %s (%s), queueing connection...", name.c_str(), addr.c_str());
             NimBLEDevice::getScan()->stop();
             if (s_pending_adv_device) delete s_pending_adv_device;
@@ -526,9 +527,22 @@ void ble_remote_task(void) {
     uint32_t now = millis();
 
     // 1. Process asynchronous connection requests from FreeRTOS task
-    if (s_do_connect) {
+    //    Manual MAC connection has priority over auto-scan advertisement matching.
+    if (s_do_connect || s_manual_connect_requested) {
+        bool was_manual = s_manual_connect_requested;
         s_do_connect = false;
-        if (s_pending_adv_device) {
+        s_manual_connect_requested = false;
+
+        if (was_manual && s_pending_mac.length() > 0) {
+            // Cancel any pending auto-scan device; user explicitly chose a MAC.
+            if (s_pending_adv_device) {
+                delete s_pending_adv_device;
+                s_pending_adv_device = nullptr;
+            }
+            app_log("BLE", "Manual connect request for MAC: %s", s_pending_mac.c_str());
+            do_connect_mac(s_pending_mac, s_pending_addr_type);
+            s_pending_mac = "";
+        } else if (s_pending_adv_device) {
             do_connect_adv_device(s_pending_adv_device);
             delete s_pending_adv_device;
             s_pending_adv_device = nullptr;
@@ -650,9 +664,21 @@ String ble_remote_scan_devices_json(void) {
 
 bool ble_remote_connect_mac(const String& mac_str) {
     if (mac_str.length() == 0) return false;
+
+    // Stop active scanning immediately and mark a manual-connect request.
+    // This prevents the continuous-scan auto-matching from overriding the
+    // user's explicit device selection.
+    NimBLEDevice::getScan()->stop();
+    if (s_pending_adv_device) {
+        delete s_pending_adv_device;
+        s_pending_adv_device = nullptr;
+    }
+
     s_pending_mac = mac_str;
     s_pending_addr_type = BLE_ADDR_RANDOM;
+    s_manual_connect_requested = true;
     s_do_connect = true;
+    app_log("BLE", "Queued manual connection to %s", mac_str.c_str());
     return true;
 }
 
