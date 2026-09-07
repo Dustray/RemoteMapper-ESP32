@@ -297,7 +297,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <div class="logo">RemoteMapper</div>
                 <span class="badge">ESP32-S3 Hardware Bridge</span>
             </div>
-            <div id="top-status" style="font-size: 13px; color: var(--text-muted);">正在加载状态...</div>
+            <div id="top-status" style="font-size: 13px; color: var(--text-muted);">固件: -- | 运行: -- | IP: --</div>
         </header>
 
         <!-- System Overview Cards -->
@@ -493,10 +493,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                     <span>蓝牙设备配对</span>
                     <div style="display:flex; align-items:center; gap:12px;">
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:var(--text-muted);">
-                            <input type="checkbox" id="ble-hide-unnamed" checked onchange="scanBleDevices()">
+                            <input type="checkbox" id="ble-hide-unnamed" checked onchange="window.rebuildBleDeviceVisibility()">
                             隐藏未命名设备
                         </label>
-                        <button class="btn" onclick="scanBleDevices()">扫描蓝牙设备</button>
+                        <button class="btn" onclick="window.scanBleDevices(true)">扫描蓝牙设备</button>
                     </div>
                 </div>
                 <div id="ble-dev-list" style="margin-top: 14px;">点击上方按钮扫描附近的蓝牙遥控器...</div>
@@ -1976,40 +1976,148 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             return cb ? cb.checked : true;
         }
 
-        async function scanBleDevices() {
-            const container = document.getElementById('ble-dev-list');
-            container.innerHTML = '正在扫描周围蓝牙设备 (4秒)...';
-            try {
-                const res = await fetch('/api/ble/scan');
-                const d = await res.json();
-                const hideUnnamed = shouldHideUnnamedBleDevices();
-                const visibleDevices = hideUnnamed
-                    ? (d.devices || []).filter(dev => !isUnnamedBleDevice(dev.name))
-                    : (d.devices || []);
+        (function() {
+            let scanTimer = null;
+            let knownBleDevices = new Map();
+            let isScanning = false;
 
-                if (visibleDevices.length === 0) {
-                    const hint = hideUnnamed && (d.devices || []).length > 0
-                        ? '<div style="color:var(--text-muted);">附近设备中未发现命名设备，请取消勾选"隐藏未命名设备"查看全部。</div>'
-                        : '<div style="color:var(--text-muted);">未发现附近设备，请确保遥控器处于配对广播状态。</div>';
-                    container.innerHTML = hint;
-                    return;
+            function getBleListContainer() {
+                return document.getElementById('ble-dev-list');
+            }
+
+            function ensureBleListStructure() {
+                const container = getBleListContainer();
+                if (!container) return null;
+                let info = document.getElementById('ble-scan-info');
+                let listEl = document.getElementById('ble-list-items');
+                if (!info) {
+                    info = document.createElement('div');
+                    info.id = 'ble-scan-info';
+                    info.style.cssText = 'color:var(--text-muted);font-size:12px;margin-bottom:8px;';
+                    container.appendChild(info);
                 }
+                if (!listEl) {
+                    listEl = document.createElement('div');
+                    listEl.id = 'ble-list-items';
+                    listEl.style.cssText = 'display:grid; gap:10px;';
+                    container.appendChild(listEl);
+                }
+                return { info, listEl };
+            }
 
-                const totalInfo = (d.devices || []).length !== visibleDevices.length
-                    ? `<div style="color:var(--text-muted);font-size:12px;margin-bottom:8px;">显示 ${visibleDevices.length} / ${d.devices.length} 个设备</div>`
-                    : '';
+            function renderBleDevice(dev) {
+                const structure = ensureBleListStructure();
+                if (!structure) return;
+                const listEl = structure.listEl;
 
-                let html = totalInfo + '<div style="display:grid; gap:10px;">';
-                visibleDevices.forEach(dev => {
-                    html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#0b0f17; padding:12px; border-radius:8px; border:1px solid #243247;">
+                const rowId = 'ble-dev-' + dev.mac.replace(/[^a-fA-F0-9]/g, '');
+                let row = document.getElementById(rowId);
+                const rowHtml = `<div style="display:flex; justify-content:space-between; align-items:center; background:#0b0f17; padding:12px; border-radius:8px; border:1px solid #243247;">
                         <div><b>${dev.name}</b> <span style="font-size:12px; color:var(--text-muted); font-family:monospace;">(${dev.mac}) RSSI: ${dev.rssi}dBm</span></div>
                         <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="connectMac('${dev.mac}')">连接</button>
                     </div>`;
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            } catch(e){ container.innerText = '扫描出错: ' + e; }
-        }
+                if (row) {
+                    row.innerHTML = rowHtml;
+                } else {
+                    row = document.createElement('div');
+                    row.id = rowId;
+                    row.innerHTML = rowHtml;
+                    listEl.appendChild(row);
+                }
+            }
+
+            function updateBleInfo(visibleCount, totalCount) {
+                const structure = ensureBleListStructure();
+                if (!structure) return;
+                const info = structure.info;
+                if (totalCount !== visibleCount) {
+                    info.textContent = `显示 ${visibleCount} / ${totalCount} 个设备`;
+                } else {
+                    info.textContent = isScanning ? '扫描中...' : `共 ${visibleCount} 个设备`;
+                }
+            }
+
+            function removeAllBleRows() {
+                const listEl = document.getElementById('ble-list-items');
+                if (listEl) listEl.innerHTML = '';
+            }
+
+            function rebuildHiddenState() {
+                const hideUnnamed = shouldHideUnnamedBleDevices();
+                const visibleDevices = hideUnnamed
+                    ? Array.from(knownBleDevices.values()).filter(dev => !isUnnamedBleDevice(dev.name))
+                    : Array.from(knownBleDevices.values());
+
+                // Reconcile DOM with visible set: render missing, remove extra
+                removeAllBleRows();
+                visibleDevices.forEach(dev => renderBleDevice(dev));
+                updateBleInfo(visibleDevices.length, knownBleDevices.size);
+            }
+
+            async function scanBleDevices(start = false) {
+                const container = getBleListContainer();
+                if (start) {
+                    knownBleDevices.clear();
+                    isScanning = true;
+                    if (container) {
+                        container.innerHTML = '';
+                        ensureBleListStructure();
+                        updateBleInfo(0, 0);
+                    }
+                }
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+                    const res = await fetch('/api/ble/scan', { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    const d = await res.json();
+                    const hideUnnamed = shouldHideUnnamedBleDevices();
+
+                    // Track whether scan still running based on response flag
+                    isScanning = d.scanning !== false;
+
+                    for (const dev of (d.devices || [])) {
+                        const key = dev.mac;
+                        const old = knownBleDevices.get(key);
+                        if (!old || old.rssi !== dev.rssi || old.name !== dev.name) {
+                            knownBleDevices.set(key, dev);
+                            if (!hideUnnamed || !isUnnamedBleDevice(dev.name)) {
+                                renderBleDevice(dev);
+                            }
+                        }
+                    }
+
+                    const visibleDevices = hideUnnamed
+                        ? Array.from(knownBleDevices.values()).filter(dev => !isUnnamedBleDevice(dev.name))
+                        : Array.from(knownBleDevices.values());
+                    updateBleInfo(visibleDevices.length, knownBleDevices.size);
+
+                    if (isScanning) {
+                        if (scanTimer) clearTimeout(scanTimer);
+                        scanTimer = setTimeout(() => scanBleDevices(false), 500);
+                    } else {
+                        updateBleInfo(visibleDevices.length, knownBleDevices.size);
+                    }
+                } catch(e) {
+                    // Only overwrite container text on initial start; otherwise keep last known list
+                    if (start && container) {
+                        container.innerText = '扫描启动失败: ' + e;
+                    }
+                    if (isScanning) {
+                        if (scanTimer) clearTimeout(scanTimer);
+                        scanTimer = setTimeout(() => scanBleDevices(false), 1000);
+                    }
+                }
+            }
+
+            // Expose filter rebuild so checkbox onchange can only toggle visibility
+            window.scanBleDevices = scanBleDevices;
+            window.rebuildBleDeviceVisibility = rebuildHiddenState;
+        })();
 
         async function connectMac(mac) {
             try {
@@ -2030,12 +2138,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             }
         }
 
-        async function scanWifiNetworks() {
+        async function scanWifiNetworks(poll = false) {
             const list = document.getElementById('wifi-scan-list');
-            list.innerHTML = '正在搜索周围 2.4GHz Wi-Fi 网络...';
+            if (!poll) list.innerHTML = '正在搜索周围 2.4GHz Wi-Fi 网络...';
             try {
                 const res = await fetch('/api/wifi/scan');
                 const d = await res.json();
+                if (d.status === 'scanning') {
+                    if (!poll) setTimeout(() => scanWifiNetworks(true), 800);
+                    return;
+                }
                 if (!d.networks || d.networks.length === 0) {
                     list.innerHTML = '未扫描到无线网络';
                     return;

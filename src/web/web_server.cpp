@@ -148,6 +148,7 @@ static void handle_keymap_telemetry() {
 }
 
 static void handle_ble_scan() {
+    s_server.sendHeader("Connection", "close");
     String json = ble_remote_scan_devices_json();
     s_server.send(200, "application/json", json);
 }

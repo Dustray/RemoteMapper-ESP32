@@ -37,6 +37,28 @@ static uint32_t                        s_last_scan_ms = 0;
 static uint32_t                        s_last_keepalive_ms = 0;
 static size_t                          s_frame_size = AUDIO_DEFAULT_FRAME_BYTES;
 
+// Foreground scan state (Core 1 sets, Core 0 consumes)
+static TaskHandle_t                    s_ble_task_handle = nullptr;
+static volatile bool                   s_scan_in_progress = false;
+static portMUX_TYPE                    s_scan_in_progress_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint32_t                        s_scan_start_ms = 0;
+static char                            s_scan_results_buf[8192] = {0};
+static portMUX_TYPE                    s_scan_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
+static bool is_foreground_scan_in_progress(void) {
+    bool v = false;
+    portENTER_CRITICAL(&s_scan_in_progress_mux);
+    v = s_scan_in_progress;
+    portEXIT_CRITICAL(&s_scan_in_progress_mux);
+    return v;
+}
+
+static void set_foreground_scan_in_progress(bool v) {
+    portENTER_CRITICAL(&s_scan_in_progress_mux);
+    s_scan_in_progress = v;
+    portEXIT_CRITICAL(&s_scan_in_progress_mux);
+}
+
 extern key_mapper_engine_t g_key_engine;
 
 // Forward Declarations
@@ -44,6 +66,14 @@ static void start_scan();
 static bool do_connect_adv_device(NimBLEAdvertisedDevice* advDevice);
 static bool do_connect_mac(const String& mac_str, uint8_t addr_type);
 static bool setup_services_and_handshake();
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+static void append_live_scan_device(const String& name, const String& mac, int rssi, int type);
+#ifdef __cplusplus
+}
+#endif
 
 // Audio Notification Callback (ATVV Char 0x03)
 static void on_audio_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
@@ -235,11 +265,20 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
     void onResult(NimBLEAdvertisedDevice* advertisedDevice) override {
         String name = advertisedDevice->getName().c_str();
         String addr = advertisedDevice->getAddress().toString().c_str();
+        int rssi = advertisedDevice->getRSSI();
+        int type = (int)advertisedDevice->getAddress().getType();
+
+        if (is_foreground_scan_in_progress()) {
+            String display_name = name.length() > 0 ? name : String("Unnamed BLE Device");
+            app_log("BLE_SCAN", "Live: %s (%s, RSSI: %d, Type: %d)",
+                    display_name.c_str(), addr.c_str(), rssi, type);
+            append_live_scan_device(name, addr, rssi, type);
+            return;
+        }
 
         if (name.length() > 0) {
-            app_log("BLE_SCAN", "Device: %s (%s, RSSI: %d, Type: %d)", 
-                    name.c_str(), addr.c_str(), advertisedDevice->getRSSI(), 
-                    (int)advertisedDevice->getAddress().getType());
+            app_log("BLE_SCAN", "Device: %s (%s, RSSI: %d, Type: %d)",
+                    name.c_str(), addr.c_str(), rssi, type);
         }
 
         if (s_ble_state <= BLE_STATE_SCANNING && is_target_remote(advertisedDevice) && !s_do_connect && !s_manual_connect_requested) {
@@ -506,6 +545,10 @@ void ble_remote_init(void) {
         app_log("BLE", "Loaded previously bound remote: %s (%s, Type: %d)", bound_name.c_str(), s_bound_mac.c_str(), (int)s_bound_addr_type);
     }
 
+    if (s_ble_task_handle == nullptr) {
+        s_ble_task_handle = xTaskGetCurrentTaskHandle();
+    }
+
     NimBLEDevice::init("ESP32-RemoteBridge");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
@@ -523,8 +566,187 @@ void ble_remote_init(void) {
     start_scan();
 }
 
+static void build_and_store_scan_results(void) {
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    NimBLEScanResults results = pScan->getResults();
+
+    JsonDocument doc;
+    doc["status"] = "ok";
+    doc["scanning"] = false;
+    JsonArray arr = doc["devices"].to<JsonArray>();
+
+    for (int i = 0; i < results.getCount(); i++) {
+        NimBLEAdvertisedDevice dev = results.getDevice(i);
+        JsonObject obj = arr.add<JsonObject>();
+        String name = dev.getName().c_str();
+        if (name.length() == 0) name = "Unnamed BLE Device";
+        obj["name"] = name;
+        obj["mac"] = dev.getAddress().toString().c_str();
+        obj["rssi"] = dev.getRSSI();
+        obj["type"] = (int)dev.getAddress().getType();
+    }
+
+    String out;
+    size_t serialized_len = serializeJson(doc, out);
+    if (serialized_len >= sizeof(s_scan_results_buf)) {
+        app_log("BLE", "Scan result too large (%d bytes), truncating device list", (int)serialized_len);
+        while (arr.size() > 0 && out.length() >= sizeof(s_scan_results_buf) - 4) {
+            arr.remove(arr.size() - 1);
+            out.clear();
+            serializeJson(doc, out);
+        }
+        if (out.length() >= sizeof(s_scan_results_buf) - 4) {
+            doc.clear();
+            doc["status"] = "ok";
+            doc["scanning"] = false;
+            doc["devices"] = JsonArray();
+            out.clear();
+            serializeJson(doc, out);
+        }
+    }
+
+    pScan->clearResults();
+
+    if (s_ble_state < BLE_STATE_CONNECTED && !s_do_connect) {
+        if (s_adv_callbacks == nullptr) {
+            s_adv_callbacks = new AdvertisedDeviceCallbacks();
+        }
+        pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
+        start_scan();
+    }
+
+    portENTER_CRITICAL(&s_scan_spinlock);
+    size_t len = out.length();
+    if (len >= sizeof(s_scan_results_buf)) len = sizeof(s_scan_results_buf) - 1;
+    memcpy(s_scan_results_buf, out.c_str(), len);
+    s_scan_results_buf[len] = '\0';
+    portEXIT_CRITICAL(&s_scan_spinlock);
+
+    set_foreground_scan_in_progress(false);
+    s_scan_start_ms = 0;
+    app_log("BLE", "Scan done: %d devices (json %d bytes)", results.getCount(), (int)len);
+}
+
+static void append_live_scan_device(const String& name, const String& mac, int rssi, int type) {
+    portENTER_CRITICAL(&s_scan_spinlock);
+    JsonDocument doc;
+    if (s_scan_results_buf[0] != '\0') {
+        deserializeJson(doc, s_scan_results_buf);
+    }
+    doc["status"] = "ok";
+    doc["scanning"] = true;
+    JsonArray arr = doc["devices"].to<JsonArray>();
+
+    // Deduplicate by MAC
+    for (JsonObject existing : arr) {
+        const char* existing_mac = existing["mac"];
+        if (existing_mac && mac.equals(existing_mac)) {
+            existing["rssi"] = rssi;
+            String out;
+            serializeJson(doc, out);
+            size_t len = out.length();
+            if (len >= sizeof(s_scan_results_buf)) len = sizeof(s_scan_results_buf) - 1;
+            memcpy(s_scan_results_buf, out.c_str(), len);
+            s_scan_results_buf[len] = '\0';
+            portEXIT_CRITICAL(&s_scan_spinlock);
+            return;
+        }
+    }
+
+    JsonObject obj = arr.add<JsonObject>();
+    obj["name"] = name.length() > 0 ? name : "Unnamed BLE Device";
+    obj["mac"] = mac;
+    obj["rssi"] = rssi;
+    obj["type"] = type;
+
+    String out;
+    size_t serialized_len = serializeJson(doc, out);
+    if (serialized_len >= sizeof(s_scan_results_buf)) {
+        app_log("BLE", "Live scan list full, dropping unnamed devices");
+        for (size_t i = 0; i < arr.size(); ) {
+            const char* n = arr[i]["name"];
+            if (n && strcmp(n, "Unnamed BLE Device") == 0) {
+                arr.remove(i);
+            } else {
+                i++;
+            }
+        }
+        out.clear();
+        serializeJson(doc, out);
+        if (out.length() >= sizeof(s_scan_results_buf)) {
+            portEXIT_CRITICAL(&s_scan_spinlock);
+            return;
+        }
+    }
+
+    size_t len = out.length();
+    if (len >= sizeof(s_scan_results_buf)) len = sizeof(s_scan_results_buf) - 1;
+    memcpy(s_scan_results_buf, out.c_str(), len);
+    s_scan_results_buf[len] = '\0';
+    portEXIT_CRITICAL(&s_scan_spinlock);
+}
+
+static void check_foreground_scan_complete(void) {
+    if (!is_foreground_scan_in_progress()) return;
+
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    uint32_t elapsed = millis() - s_scan_start_ms;
+
+    // NimBLE's start(duration) does not always stop reliably when no callback is supplied.
+    // Force stop after the requested 4-second window plus a small margin.
+    if (elapsed >= 4500 || !pScan->isScanning()) {
+        if (pScan->isScanning()) {
+            app_log("BLE", "Foreground scan reached 4s, stopping");
+            pScan->stop();
+            uint32_t t0 = millis();
+            while (pScan->isScanning() && (millis() - t0) < 300) delay(1);
+        }
+        build_and_store_scan_results();
+    }
+}
+
+static void do_foreground_scan(void) {
+    app_log("BLE", "Starting foreground scan");
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+
+    // Ensure the advertised-device callback is registered; NimBLE may drop it
+    // across stop/start cycles on some versions.
+    if (s_adv_callbacks == nullptr) {
+        s_adv_callbacks = new AdvertisedDeviceCallbacks();
+    }
+    pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
+
+    if (pScan->isScanning()) {
+        app_log("BLE", "Stopping active scan before foreground scan");
+        pScan->stop();
+        uint32_t t0 = millis();
+        while (pScan->isScanning() && (millis() - t0) < 500) delay(1);
+    }
+    delay(20);
+    pScan->clearResults();
+    s_scan_results_buf[0] = '\0';
+    s_scan_start_ms = millis();
+
+    if (!pScan->start(4, nullptr, false)) {
+        app_log("BLE", "Foreground scan start() failed");
+        build_and_store_scan_results();
+    } else {
+        app_log("BLE", "Foreground scan running");
+    }
+}
+
 void ble_remote_task(void) {
     uint32_t now = millis();
+
+    if (s_ble_task_handle != nullptr &&
+        ulTaskNotifyTake(pdTRUE, 0) > 0) {
+        app_log("BLE", "Task received foreground scan request (notify)");
+        set_foreground_scan_in_progress(true);
+        do_foreground_scan();
+        return;
+    }
+
+    check_foreground_scan_complete();
 
     // 1. Process asynchronous connection requests from FreeRTOS task
     //    Manual MAC connection has priority over auto-scan advertisement matching.
@@ -599,67 +821,34 @@ void ble_remote_trigger_reconnect(void) {
 }
 
 String ble_remote_scan_devices_json(void) {
-    app_log("BLE", "Performing full 4s BLE scan for nearby devices...");
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-
-    // Temporarily disable advertisement callbacks so our continuous-scan logic
-    // does not try to connect while we are doing a manual foreground scan.
-    pScan->setAdvertisedDeviceCallbacks(nullptr, false);
-
-    // Ensure previous scan is fully stopped and result cache is cleared
-    if (pScan->isScanning()) {
-        pScan->stop();
-        uint32_t t0 = millis();
-        while (pScan->isScanning() && (millis() - t0) < 300) {
-            delay(1);
+    // While a scan is active, return the live accumulated list so UI updates immediately.
+    if (is_foreground_scan_in_progress()) {
+        portENTER_CRITICAL(&s_scan_spinlock);
+        String out(s_scan_results_buf);
+        portEXIT_CRITICAL(&s_scan_spinlock);
+        if (out.length() == 0) {
+            return "{\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
         }
+        return out;
     }
-    delay(50); // extra settle time for NimBLE host to release the scanner
-    pScan->clearResults();
 
-    NimBLEScanResults results;
-    for (int attempt = 0; attempt < 2; attempt++) {
-        if (!pScan->isScanning()) {
-            results = pScan->start(4, false);
-            if (results.getCount() >= 0) break;
+    if (s_scan_results_buf[0] != '\0') {
+        String out(s_scan_results_buf);
+        s_scan_results_buf[0] = '\0';
+        return out;
+    }
+
+    if (s_ble_task_handle != nullptr) {
+        BaseType_t result = xTaskNotifyGive(s_ble_task_handle);
+        if (result != pdPASS) {
+            app_log("BLE", "Foreground scan notify failed");
+        } else {
+            app_log("BLE", "Foreground scan requested from web UI");
         }
-        app_log("BLE", "Scan start failed or returned stale data, retrying...");
-        pScan->stop();
-        delay(100);
-        pScan->clearResults();
+    } else {
+        app_log("BLE", "Foreground scan failed: BLE task handle not ready");
     }
-
-    JsonDocument doc;
-    JsonArray arr = doc["devices"].to<JsonArray>();
-
-    for (int i = 0; i < results.getCount(); i++) {
-        NimBLEAdvertisedDevice dev = results.getDevice(i);
-        JsonObject obj = arr.add<JsonObject>();
-        String name = dev.getName().c_str();
-        if (name.length() == 0) name = "Unnamed BLE Device";
-        obj["name"] = name;
-        obj["mac"] = dev.getAddress().toString().c_str();
-        obj["rssi"] = dev.getRSSI();
-        obj["type"] = (int)dev.getAddress().getType();
-    }
-
-    String out;
-    serializeJson(doc, out);
-
-    // Clear cached results so the next scan starts fresh
-    pScan->clearResults();
-
-    // Resume continuous background scan if not connected
-    if (s_ble_state < BLE_STATE_CONNECTED && !s_do_connect) {
-        // Re-install advertisement callbacks before restarting background scan
-        if (s_adv_callbacks == nullptr) {
-            s_adv_callbacks = new AdvertisedDeviceCallbacks();
-        }
-        pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
-        start_scan();
-    }
-
-    return out;
+    return "{\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
 }
 
 bool ble_remote_connect_mac(const String& mac_str) {

@@ -94,27 +94,46 @@ int8_t wifi_manager_get_sta_rssi(void) {
     return 0;
 }
 
-String wifi_manager_scan_json(void) {
-    app_log("WIFI", "Scanning for 2.4GHz Wi-Fi networks...");
+static volatile bool s_wifi_scan_requested = false;
+static volatile bool s_wifi_scan_in_progress = false;
+static String s_wifi_scan_results;
 
-    // Clean up any stale previous scan results to avoid stale/empty reads
+static void start_wifi_scan_async(void) {
     WiFi.scanDelete();
+    WiFi.scanNetworks(true);
+    s_wifi_scan_in_progress = true;
+}
 
-    int n = WiFi.scanNetworks();
-    JsonDocument doc;
-    JsonArray arr = doc["networks"].to<JsonArray>();
+String wifi_manager_scan_json(void) {
+    if (s_wifi_scan_in_progress) {
+        int16_t status = WiFi.scanComplete();
+        if (status == WIFI_SCAN_RUNNING) {
+            return "{\"status\":\"scanning\"}";
+        }
 
-    for (int i = 0; i < n; i++) {
-        JsonObject obj = arr.add<JsonObject>();
-        obj["ssid"] = WiFi.SSID(i);
-        obj["rssi"] = WiFi.RSSI(i);
-        obj["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+        if (status >= 0) {
+            JsonDocument doc;
+            doc["status"] = "ok";
+            JsonArray arr = doc["networks"].to<JsonArray>();
+            for (int16_t i = 0; i < status; i++) {
+                JsonObject obj = arr.add<JsonObject>();
+                obj["ssid"] = WiFi.SSID(i);
+                obj["rssi"] = WiFi.RSSI(i);
+                obj["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+            }
+            serializeJson(doc, s_wifi_scan_results);
+            WiFi.scanDelete();
+            s_wifi_scan_in_progress = false;
+            return s_wifi_scan_results;
+        }
+
+        WiFi.scanDelete();
+        s_wifi_scan_in_progress = false;
+        return "{\"status\":\"ok\",\"networks\":[]}";
     }
 
-    String out;
-    serializeJson(doc, out);
-    WiFi.scanDelete();
-    return out;
+    start_wifi_scan_async();
+    return "{\"status\":\"scanning\"}";
 }
 
 bool wifi_manager_save_sta_config(const String& ssid, const String& password) {
