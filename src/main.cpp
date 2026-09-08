@@ -45,7 +45,6 @@ void setup() {
 
     // 2. Initialize USB Composite Stack (UAC Mic + HID Keyboard + Consumer + CDC)
     usb_composite_init();
-    Serial.begin(115200);
     delay(200);
 
     app_log("SYSTEM", "==================================================");

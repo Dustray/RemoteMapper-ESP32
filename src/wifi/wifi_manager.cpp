@@ -108,12 +108,14 @@ String wifi_manager_scan_json(void) {
     if (s_wifi_scan_in_progress) {
         int16_t status = WiFi.scanComplete();
         if (status == WIFI_SCAN_RUNNING) {
-            return "{\"status\":\"scanning\"}";
+            return "{\"type\":\"wifi\",\"status\":\"scanning\",\"scanning\":true}";
         }
 
         if (status >= 0) {
             JsonDocument doc;
+            doc["type"] = "wifi";
             doc["status"] = "ok";
+            doc["scanning"] = false;
             JsonArray arr = doc["networks"].to<JsonArray>();
             for (int16_t i = 0; i < status; i++) {
                 JsonObject obj = arr.add<JsonObject>();
@@ -129,11 +131,11 @@ String wifi_manager_scan_json(void) {
 
         WiFi.scanDelete();
         s_wifi_scan_in_progress = false;
-        return "{\"status\":\"ok\",\"networks\":[]}";
+        return "{\"type\":\"wifi\",\"status\":\"ok\",\"scanning\":false,\"networks\":[]}";
     }
 
     start_wifi_scan_async();
-    return "{\"status\":\"scanning\"}";
+    return "{\"type\":\"wifi\",\"status\":\"scanning\",\"scanning\":true}";
 }
 
 bool wifi_manager_save_sta_config(const String& ssid, const String& password) {

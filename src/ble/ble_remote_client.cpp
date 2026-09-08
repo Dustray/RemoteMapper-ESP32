@@ -4,6 +4,7 @@
 #include "keymap/key_state_machine.h"
 #include "usb/usb_composite.h"
 #include "log/app_log.h"
+#include "wifi/wifi_manager.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <Preferences.h>
@@ -571,6 +572,7 @@ static void build_and_store_scan_results(void) {
     NimBLEScanResults results = pScan->getResults();
 
     JsonDocument doc;
+    doc["type"] = "ble";
     doc["status"] = "ok";
     doc["scanning"] = false;
     JsonArray arr = doc["devices"].to<JsonArray>();
@@ -607,13 +609,8 @@ static void build_and_store_scan_results(void) {
 
     pScan->clearResults();
 
-    if (s_ble_state < BLE_STATE_CONNECTED && !s_do_connect) {
-        if (s_adv_callbacks == nullptr) {
-            s_adv_callbacks = new AdvertisedDeviceCallbacks();
-        }
-        pScan->setAdvertisedDeviceCallbacks(s_adv_callbacks);
-        start_scan();
-    }
+    // Do not immediately restart continuous scan after a foreground scan;
+    // the caller has the full result and will restart scanning if needed.
 
     portENTER_CRITICAL(&s_scan_spinlock);
     size_t len = out.length();
@@ -633,6 +630,7 @@ static void append_live_scan_device(const String& name, const String& mac, int r
     if (s_scan_results_buf[0] != '\0') {
         deserializeJson(doc, s_scan_results_buf);
     }
+    doc["type"] = "ble";
     doc["status"] = "ok";
     doc["scanning"] = true;
     JsonArray arr = doc["devices"].to<JsonArray>();
@@ -693,10 +691,10 @@ static void check_foreground_scan_complete(void) {
     uint32_t elapsed = millis() - s_scan_start_ms;
 
     // NimBLE's start(duration) does not always stop reliably when no callback is supplied.
-    // Force stop after the requested 4-second window plus a small margin.
-    if (elapsed >= 4500 || !pScan->isScanning()) {
+    // Force stop after the requested 8-second window plus a small margin.
+    if (elapsed >= 8500 || !pScan->isScanning()) {
         if (pScan->isScanning()) {
-            app_log("BLE", "Foreground scan reached 4s, stopping");
+            app_log("BLE", "Foreground scan reached 8s, stopping");
             pScan->stop();
             uint32_t t0 = millis();
             while (pScan->isScanning() && (millis() - t0) < 300) delay(1);
@@ -727,7 +725,7 @@ static void do_foreground_scan(void) {
     s_scan_results_buf[0] = '\0';
     s_scan_start_ms = millis();
 
-    if (!pScan->start(4, nullptr, false)) {
+    if (!pScan->start(8, nullptr, false)) {
         app_log("BLE", "Foreground scan start() failed");
         build_and_store_scan_results();
     } else {
@@ -741,8 +739,12 @@ void ble_remote_task(void) {
     if (s_ble_task_handle != nullptr &&
         ulTaskNotifyTake(pdTRUE, 0) > 0) {
         app_log("BLE", "Task received foreground scan request (notify)");
-        set_foreground_scan_in_progress(true);
-        do_foreground_scan();
+        // If a foreground scan is already in progress, just let it continue;
+        // do not restart it, otherwise it will never complete.
+        if (!is_foreground_scan_in_progress()) {
+            set_foreground_scan_in_progress(true);
+            do_foreground_scan();
+        }
         return;
     }
 
@@ -827,7 +829,7 @@ String ble_remote_scan_devices_json(void) {
         String out(s_scan_results_buf);
         portEXIT_CRITICAL(&s_scan_spinlock);
         if (out.length() == 0) {
-            return "{\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
+            return "{\"type\":\"ble\",\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
         }
         return out;
     }
@@ -843,12 +845,12 @@ String ble_remote_scan_devices_json(void) {
         if (result != pdPASS) {
             app_log("BLE", "Foreground scan notify failed");
         } else {
-            app_log("BLE", "Foreground scan requested from web UI");
+            app_log("BLE", "Foreground scan requested from serial UI");
         }
     } else {
         app_log("BLE", "Foreground scan failed: BLE task handle not ready");
     }
-    return "{\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
+    return "{\"type\":\"ble\",\"status\":\"scanning\",\"scanning\":true,\"devices\":[]}";
 }
 
 bool ble_remote_connect_mac(const String& mac_str) {
@@ -888,6 +890,8 @@ String ble_remote_get_connected_info(void) {
     doc["name"] = s_connected_name;
     doc["mac"] = s_connected_mac;
     doc["bound_mac"] = s_bound_mac;
+    doc["wifi_connected"] = wifi_manager_is_sta_connected();
+    doc["wifi_ip"] = wifi_manager_get_sta_ip();
     String out;
     serializeJson(doc, out);
     return out;

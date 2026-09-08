@@ -3,6 +3,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "USBCDC.h"
+
+extern USBCDC USBSerial;
 
 #define STATIC_LOG_LINES 250
 #define LOG_LINE_MAX_LEN 160
@@ -33,8 +36,8 @@ void app_log(const char* tag, const char* format, ...) {
     snprintf(full_line, sizeof(full_line), "[%04u.%03u] [%s] %s", (unsigned int)sec, (unsigned int)ms, tag, msg_buf);
 
     // 1. Output to Serial safely (if USB CDC is ready)
-    if (Serial) {
-        Serial.println(full_line);
+    if (USBSerial) {
+        USBSerial.println(full_line);
     }
 
     // 2. Store to circular buffer with spinlock protection
