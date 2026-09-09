@@ -87,10 +87,12 @@ static void handle_command(const String& line) {
         // 调试用：彻底停掉 Wi-Fi（SoftAP+STA），把射频完全让给 BLE
         esp_wifi_disconnect();
         esp_wifi_stop();
+        wifi_manager_suspend();
         USBSerial.println("{\"status\":\"wifi_off\"}");
     }
     else if (base.equalsIgnoreCase("wifi_on")) {
         esp_wifi_start();
+        wifi_manager_request_sta_connect();
         USBSerial.println("{\"status\":\"wifi_on\"}");
     }
     else if (base.equalsIgnoreCase("ble_scan")) {

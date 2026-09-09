@@ -15,16 +15,30 @@ static IPAddress        s_ap_ip(192, 168, 4, 1);
 static IPAddress        s_ap_netmask(255, 255, 255, 0);
 
 static bool             s_sta_configured = false;
-static uint32_t         s_last_sta_check = 0;
+
+// ---------- STA 连接退避状态机 ----------
+// 路由器不可达时，驱动级自动重连每次都会全信道扫射射频，把 BLE 扫描/接收
+// 彻底饿死（共存 PREFER_BT 也挡不住连接期的信道切换风暴）。改为自管退避：
+// 单次尝试 20s 内连不上就主动断开停手，按 5s→60s 指数退避再试；
+// 静默窗口让 BLE 正常收广播。连接成功后退避间隔复位。
+#define STA_ATTEMPT_TIMEOUT_MS  20000
+#define STA_BACKOFF_MIN_MS      5000
+#define STA_BACKOFF_MAX_MS      60000
+static bool     s_sta_attempting = false;        // 一次连接尝试进行中
+static bool     s_sta_force_attempt = false;     // 外部要求立即发起一轮尝试
+static uint32_t s_sta_attempt_start_ms = 0;
+static uint32_t s_sta_next_attempt_ms = 0;
+static uint32_t s_sta_backoff_ms = STA_BACKOFF_MIN_MS;
 
 void wifi_manager_init(void) {
     s_prefs.begin("wifi_conf", false);
     String sta_ssid = s_prefs.getString("ssid", "");
-    String sta_pass = s_prefs.getString("pass", "");
     String ap_pass  = s_prefs.getString("ap_pass", "");
 
     // Set Wi-Fi Mode
     WiFi.mode(WIFI_AP_STA);
+    // 关闭驱动级无限自动重连，改由下方退避状态机管理，避免射频风暴饿死 BLE
+    WiFi.setAutoReconnect(false);
 
     // 1. Configure and start AP Mode
     WiFi.softAPConfig(s_ap_ip, s_ap_ip, s_ap_netmask);
@@ -40,11 +54,11 @@ void wifi_manager_init(void) {
     s_dns_server.setErrorReplyCode(DNSReplyCode::NoError);
     s_dns_server.start(DNS_PORT, "*", s_ap_ip);
 
-    // 3. Connect to Home Wi-Fi if saved
+    // 3. Connect to Home Wi-Fi if saved (由退避状态机发起首次尝试)
     if (sta_ssid.length() > 0) {
         s_sta_configured = true;
-        app_log("WIFI", "Connecting to Home Wi-Fi: %s...", sta_ssid.c_str());
-        WiFi.begin(sta_ssid.c_str(), sta_pass.c_str());
+        app_log("WIFI", "Home Wi-Fi configured: %s (first connect attempt queued)", sta_ssid.c_str());
+        s_sta_force_attempt = true;
     } else {
         app_log("WIFI", "No Home Wi-Fi configured, running in AP Setup mode");
     }
@@ -59,16 +73,50 @@ void wifi_manager_init(void) {
 void wifi_manager_task(void) {
     s_dns_server.processNextRequest();
 
+    if (!s_sta_configured) return;
+
     uint32_t now = millis();
-    if (s_sta_configured && (now - s_last_sta_check > 5000)) {
-        s_last_sta_check = now;
-        if (WiFi.status() == WL_CONNECTED) {
-            static bool s_logged_connected = false;
-            if (!s_logged_connected) {
-                app_log("WIFI", "Connected to Home Wi-Fi! Local IP: %s", WiFi.localIP().toString().c_str());
-                s_logged_connected = true;
-            }
+    bool connected = (WiFi.status() == WL_CONNECTED);
+
+    // 连接状态变化：连上时复位退避并记日志；掉线时立即安排重试
+    static bool s_logged_connected = false;
+    if (connected && !s_logged_connected) {
+        s_logged_connected = true;
+        s_sta_attempting = false;
+        s_sta_backoff_ms = STA_BACKOFF_MIN_MS;
+        app_log("WIFI", "Connected to Home Wi-Fi! Local IP: %s", WiFi.localIP().toString().c_str());
+    } else if (!connected && s_logged_connected) {
+        s_logged_connected = false;
+        s_sta_force_attempt = true;
+        app_log("WIFI", "STA lost connection (status=%d)", (int)WiFi.status());
+    }
+
+    if (connected) return;
+
+    // 尝试阶段：超时（20s）未连上 -> 主动断开停手，进入退避等待
+    if (s_sta_attempting) {
+        if (now - s_sta_attempt_start_ms > STA_ATTEMPT_TIMEOUT_MS) {
+            app_log("WIFI", "STA connect attempt failed (status=%d), back off %us",
+                    (int)WiFi.status(), (unsigned)(s_sta_backoff_ms / 1000));
+            WiFi.disconnect(false, false);
+            s_sta_attempting = false;
+            s_sta_next_attempt_ms = now + s_sta_backoff_ms;
+            s_sta_backoff_ms = (s_sta_backoff_ms * 2 > STA_BACKOFF_MAX_MS)
+                                   ? STA_BACKOFF_MAX_MS : s_sta_backoff_ms * 2;
         }
+        return;
+    }
+
+    // 退避等待结束（或外部强制）-> 发起一轮新尝试
+    if (s_sta_force_attempt || (int32_t)(now - s_sta_next_attempt_ms) >= 0) {
+        s_sta_force_attempt = false;
+        String sta_ssid = s_prefs.getString("ssid", "");
+        String sta_pass = s_prefs.getString("pass", "");
+        if (sta_ssid.length() == 0) return;
+        app_log("WIFI", "STA connect attempt -> %s", sta_ssid.c_str());
+        WiFi.begin(sta_ssid.c_str(), sta_pass.c_str());
+        s_sta_attempting = true;
+        s_sta_attempt_start_ms = now;
     }
 }
 
@@ -146,9 +194,22 @@ bool wifi_manager_save_sta_config(const String& ssid, const String& password) {
     s_sta_configured = true;
 
     app_log("WIFI", "Saved new Wi-Fi credentials for: %s, connecting...", ssid.c_str());
-    WiFi.disconnect();
-    WiFi.begin(ssid.c_str(), password.c_str());
+    WiFi.disconnect(false, false);
+    s_sta_backoff_ms = STA_BACKOFF_MIN_MS;
+    s_sta_force_attempt = true;   // 交由退避状态机立即发起连接
     return true;
+}
+
+void wifi_manager_suspend(void) {
+    // wifi_off 调用：Wi-Fi 驱动已停止，挂起退避重试，避免对已停止的驱动反复 begin
+    s_sta_attempting = false;
+    s_sta_next_attempt_ms = millis() + 60000;
+}
+
+void wifi_manager_request_sta_connect(void) {
+    // wifi_on / 外部恢复调用：下一轮 task 循环立即发起连接尝试
+    if (!s_sta_configured) return;
+    s_sta_force_attempt = true;
 }
 
 String wifi_manager_get_ap_pass(void) {

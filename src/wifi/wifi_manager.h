@@ -20,6 +20,8 @@ String wifi_manager_scan_json(void);
 bool   wifi_manager_save_sta_config(const String& ssid, const String& password);
 String wifi_manager_get_ap_pass(void);
 bool   wifi_manager_save_ap_config(const String& ap_password);
+void   wifi_manager_suspend(void);          // wifi_off 调用：挂起 STA 退避重试
+void   wifi_manager_request_sta_connect(void); // wifi_on / 配置变更后立即发起一轮连接
 
 #ifdef __cplusplus
 }
