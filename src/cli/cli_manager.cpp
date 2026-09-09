@@ -156,7 +156,8 @@ static void handle_command(const String& line) {
 extern "C" {
 
 void cli_manager_init(void) {
-    s_input_buffer.reserve(256);
+    // keymap_set 的完整键位表 JSON 可达 10KB+，必须预留足够缓冲
+    s_input_buffer.reserve(8192);
 }
 
 void cli_manager_task(void) {
@@ -169,7 +170,8 @@ void cli_manager_task(void) {
             }
         } else {
             s_input_buffer += c;
-            if (s_input_buffer.length() > 250) {
+            // 防御无换行垃圾数据导致内存无限增长（正常 keymap_set 最大 ~14KB）
+            if (s_input_buffer.length() > 32768) {
                 s_input_buffer = "";
             }
         }
