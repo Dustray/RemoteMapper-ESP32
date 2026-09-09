@@ -7,11 +7,13 @@
 #include "wifi/wifi_manager.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include "esp_coexist.h"
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <vector>
 
 static ble_remote_state_t              s_ble_state = BLE_STATE_DISCONNECTED;
+static esp_coex_prefer_t               s_coex_prefer = ESP_COEX_PREFER_BALANCE;
 static NimBLEClient*                   s_client = nullptr;
 static NimBLERemoteCharacteristic*     s_char_cmd = nullptr;
 static NimBLERemoteCharacteristic*     s_char_aud = nullptr;
@@ -268,6 +270,10 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
         String addr = advertisedDevice->getAddress().toString().c_str();
         int rssi = advertisedDevice->getRSSI();
         int type = (int)advertisedDevice->getAddress().getType();
+
+        // 无条件打印：任何广播包都上报，供调试页面实时反馈按键唤醒
+        app_log("BLE_ADV", "addr=%s rssi=%d type=%d name=%s",
+                addr.c_str(), rssi, type, name.c_str());
 
         if (is_foreground_scan_in_progress()) {
             String display_name = name.length() > 0 ? name : String("Unnamed BLE Device");
@@ -733,8 +739,23 @@ static void do_foreground_scan(void) {
     }
 }
 
+// 共存优先级驱动：BLE 未连接（扫描/握手期）抢占射频，规避 Wi-Fi 饿死 BLE 接收；
+// 连接后恢复平衡，让音频流与 Wi-Fi 网页共存。状态不变时零开销。
+static void update_coex_preference() {
+    esp_coex_prefer_t want =
+        (s_ble_state < BLE_STATE_CONNECTED) ? ESP_COEX_PREFER_BT
+                                            : ESP_COEX_PREFER_BALANCE;
+    if (want != s_coex_prefer) {
+        esp_coex_preference_set(want);
+        s_coex_prefer = want;
+        app_log("BLE", "coex preference -> %s (state=%d)",
+                want == ESP_COEX_PREFER_BT ? "BT" : "BALANCE", (int)s_ble_state);
+    }
+}
+
 void ble_remote_task(void) {
     uint32_t now = millis();
+    update_coex_preference();
 
     if (s_ble_task_handle != nullptr &&
         ulTaskNotifyTake(pdTRUE, 0) > 0) {

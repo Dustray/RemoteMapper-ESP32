@@ -5,6 +5,7 @@
 #include "keymap/key_state_machine.h"
 #include "keymap/key_config_storage.h"
 #include "wifi/wifi_manager.h"
+#include "esp_wifi.h"
 #include "USBCDC.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -82,6 +83,16 @@ static void handle_command(const String& line) {
             USBSerial.println("{\"error\":\"password_too_short\"}");
         }
     }
+    else if (base.equalsIgnoreCase("wifi_off")) {
+        // 调试用：彻底停掉 Wi-Fi（SoftAP+STA），把射频完全让给 BLE
+        esp_wifi_disconnect();
+        esp_wifi_stop();
+        USBSerial.println("{\"status\":\"wifi_off\"}");
+    }
+    else if (base.equalsIgnoreCase("wifi_on")) {
+        esp_wifi_start();
+        USBSerial.println("{\"status\":\"wifi_on\"}");
+    }
     else if (base.equalsIgnoreCase("ble_scan")) {
         USBSerial.println(ble_remote_scan_devices_json());
     }
@@ -127,6 +138,8 @@ static void handle_command(const String& line) {
         USBSerial.println("  wifi_scan           - Scan nearby Wi-Fi networks");
         USBSerial.println("  wifi_sta <ssid> [pass] - Save STA credentials and connect");
         USBSerial.println("  wifi_ap [pass]      - Set AP password (empty = open)");
+        USBSerial.println("  wifi_off            - Stop Wi-Fi completely (BLE RF debug)");
+        USBSerial.println("  wifi_on             - Restart Wi-Fi");
         USBSerial.println("  ble_scan            - Scan nearby BLE devices");
         USBSerial.println("  ble_connect <mac>     - Connect and bind a BLE remote");
         USBSerial.println("  ble_unpair          - Unpair current BLE remote");
