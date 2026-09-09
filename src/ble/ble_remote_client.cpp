@@ -18,6 +18,7 @@ static NimBLEClient*                   s_client = nullptr;
 static NimBLERemoteCharacteristic*     s_char_cmd = nullptr;
 static NimBLERemoteCharacteristic*     s_char_aud = nullptr;
 static NimBLERemoteCharacteristic*     s_char_ctl = nullptr;
+static NimBLERemoteCharacteristic*     s_char_batt = nullptr;
 static NimBLEAdvertisedDeviceCallbacks* s_adv_callbacks = nullptr;
 
 static Preferences                     s_ble_prefs;
@@ -25,6 +26,10 @@ static String                          s_bound_mac = "";
 static uint8_t                         s_bound_addr_type = BLE_ADDR_RANDOM;
 static String                          s_connected_name = "";
 static String                          s_connected_mac = "";
+
+// 遥控器电量（0-100，-1 = 未知）；连接后首次读取，之后靠通知 + 周期重读更新
+static int8_t                          s_battery_level = -1;
+static uint32_t                        s_last_batt_read_ms = 0;
 
 // Asynchronous Connect Request state
 static bool                            s_do_connect = false;
@@ -83,6 +88,14 @@ static void on_audio_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, s
     if (length == 0) return;
     s_last_audio_ms = millis();
     audio_pipeline_feed_adpcm(&g_audio_pipeline, pData, length);
+}
+
+// Battery Level Notification Callback (0x2A19)
+static void on_battery_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
+    if (length >= 1) {
+        s_battery_level = (int8_t)pData[0];
+        app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+    }
 }
 
 // Control Notification Callback (ATVV Char 0x04)
@@ -375,9 +388,9 @@ static bool setup_services_and_handshake() {
         svc_uuid.toLowerCase();
         app_log("GATT_SVC", "Service: %s", svc_uuid.c_str());
 
-        // Skip known standard BLE metadata services (0x1800 GAP, 0x1801 GATT, 0x180A DIS, 0x180F Battery)
-        if (svc_uuid.indexOf("1800") >= 0 || svc_uuid.indexOf("1801") >= 0 || 
-            svc_uuid.indexOf("180a") >= 0 || svc_uuid.indexOf("180f") >= 0) {
+        // Skip known standard BLE metadata services (0x1800 GAP, 0x1801 GATT, 0x180A DIS)
+        if (svc_uuid.indexOf("1800") >= 0 || svc_uuid.indexOf("1801") >= 0 ||
+            svc_uuid.indexOf("180a") >= 0) {
             continue;
         }
 
@@ -437,6 +450,21 @@ static bool setup_services_and_handshake() {
                     sub_count++;
                     app_log("HOGP", "Subscribed to Report Char: %s", char_uuid.c_str());
                 }
+            }
+            // Match Battery Level (0x2A19) -> initial read + subscribe for updates
+            else if (char_uuid.indexOf("2a19") >= 0) {
+                s_char_batt = pChar;
+                NimBLEAttValue val = pChar->readValue();
+                if (val.length() >= 1) {
+                    s_battery_level = (int8_t)val[0];
+                    app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+                }
+                if (can_notif) {
+                    pChar->subscribe(true, on_battery_notify, false);
+                    sub_count++;
+                    app_log("BLE", "Subscribed to Battery Level Char");
+                }
+                s_last_batt_read_ms = millis();
             }
         }
     }
@@ -828,11 +856,25 @@ void ble_remote_task(void) {
                 s_char_cmd->writeValue(ping, sizeof(ping), false);
             }
         }
+
+        // 5. Battery re-read every 60s (some remotes rarely notify on change)
+        if (s_char_batt != nullptr && now - s_last_batt_read_ms > 60000) {
+            s_last_batt_read_ms = now;
+            NimBLEAttValue val = s_char_batt->readValue();
+            if (val.length() >= 1 && (int8_t)val[0] != s_battery_level) {
+                s_battery_level = (int8_t)val[0];
+                app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+            }
+        }
     }
 }
 
 ble_remote_state_t ble_remote_get_state(void) {
     return s_ble_state;
+}
+
+int8_t ble_remote_get_battery(void) {
+    return s_battery_level;
 }
 
 void ble_remote_trigger_reconnect(void) {
@@ -911,6 +953,7 @@ String ble_remote_get_connected_info(void) {
     doc["name"] = s_connected_name;
     doc["mac"] = s_connected_mac;
     doc["bound_mac"] = s_bound_mac;
+    doc["battery"] = (int)s_battery_level;  // -1 = 未知
     doc["wifi_connected"] = wifi_manager_is_sta_connected();
     doc["wifi_ip"] = wifi_manager_get_sta_ip();
     String out;

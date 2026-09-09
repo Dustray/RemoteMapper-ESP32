@@ -34,6 +34,11 @@ void ble_remote_task(void);
 ble_remote_state_t ble_remote_get_state(void);
 
 /**
+ * @brief Get remote battery level (0-100, -1 = unknown)
+ */
+int8_t ble_remote_get_battery(void);
+
+/**
  * @brief Trigger manual reconnect / re-scan
  */
 void ble_remote_trigger_reconnect(void);
