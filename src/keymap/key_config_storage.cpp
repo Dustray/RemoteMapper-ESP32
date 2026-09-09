@@ -1,5 +1,6 @@
 #include "key_config_storage.h"
 #include "log/app_log.h"
+#include "app_config.h"
 #include <Preferences.h>
 #include <ArduinoJson.h>
 
@@ -117,8 +118,11 @@ static void parse_bindings_array(JsonArray arr, key_layer_t *layer) {
         }
 
         // FORCE ACTION_VOICE_HOLD for Voice key on Layer 0 only
+        // 热键也固定为微信输入法「按住说话」组合（Ctrl+Win），不随 NVS 存储值变化
         if (b.source_vk == MI_KEY_VOICE && b.click_action.type != ACTION_SWITCH_LAYER && b.click_action.type != ACTION_TRANSPARENT) {
             b.click_action.type = ACTION_VOICE_HOLD;
+            b.click_action.modifier = DEFAULT_VOICE_MODIFIER;
+            b.click_action.key_code = DEFAULT_VOICE_KEY;
         }
 
         b.has_long = obj["has_long"] | false;

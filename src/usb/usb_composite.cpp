@@ -278,14 +278,15 @@ void usb_hid_dispatch_action(const key_action_t *action) {
             usb_hid_consumer_release();
             break;
         case ACTION_VOICE_HOLD:
-            // Hold Voice Hotkey and start audio session
+            // 微信输入法「按住说话」：按住 Ctrl+Win 期间录音，松开自动转写。
+            // 快捷键必须是纯修饰键组合——若含普通字符键，按住期间系统自动重复会把字符打进输入框
             audio_pipeline_start_session(&g_audio_pipeline, 0);
             if (action->modifier != 0 || action->key_code != 0) {
                 usb_hid_keyboard_press(action->modifier, action->key_code);
             }
             break;
         case ACTION_VOICE_RELEASE:
-            // Release Voice Hotkey and stop audio session
+            // 释放快捷键结束「按住说话」，并停止音频会话
             usb_hid_keyboard_release();
             audio_pipeline_stop_session(&g_audio_pipeline);
             break;

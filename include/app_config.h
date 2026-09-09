@@ -61,10 +61,11 @@ extern "C" {
 // ==========================================
 // 4. Default Keymap & Hotkey Codes
 // ==========================================
-// Default Voice Input Hotkey: Right Alt + Comma (WeChat Voice IME)
+// Default Voice Input Hotkey: Ctrl + Win (微信输入法「按住说话」快捷键)
+// 纯修饰键组合按住不产生字符自动重复，匹配语音键「按住说话」交互
 // HID Keyboard Modifiers: 0x01=LCTRL, 0x02=LSHIFT, 0x04=LALT, 0x08=LGUI, 0x10=RCTRL, 0x20=RSHIFT, 0x40=RALT, 0x80=RGUI
-#define DEFAULT_VOICE_MODIFIER    0x40      // KEY_MOD_RALT
-#define DEFAULT_VOICE_KEY         0x36      // HID Usage for Comma ','
+#define DEFAULT_VOICE_MODIFIER    (0x01 | 0x08)  // LCTRL + LGUI
+#define DEFAULT_VOICE_KEY         0x00      // 无普通按键，仅修饰键
 
 #ifdef __cplusplus
 }
