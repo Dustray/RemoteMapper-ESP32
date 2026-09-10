@@ -5,6 +5,7 @@
 #include "keymap/key_state_machine.h"
 #include "keymap/key_config_storage.h"
 #include "wifi/wifi_manager.h"
+#include "log/app_log.h"
 #include "esp_wifi.h"
 #include "USBCDC.h"
 #include <Arduino.h>
@@ -116,6 +117,11 @@ static void handle_command(const String& line) {
     }
     else if (base.equalsIgnoreCase("ble_info")) {
         USBSerial.println(ble_remote_get_connected_info());
+    }
+    else if (base.equalsIgnoreCase("logs")) {
+        // 导出环形日志缓冲（250 行），供无 Wi-Fi 场景诊断
+        USBSerial.print(app_log_get_json());
+        USBSerial.println();
     }
     else if (base.equalsIgnoreCase("keymap_get")) {
         USBSerial.println(key_config_to_json(&g_key_engine));

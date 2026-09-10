@@ -35,10 +35,9 @@ void app_log(const char* tag, const char* format, ...) {
     char full_line[LOG_LINE_MAX_LEN];
     snprintf(full_line, sizeof(full_line), "[%04u.%03u] [%s] %s", (unsigned int)sec, (unsigned int)ms, tag, msg_buf);
 
-    // 1. Output to Serial safely (if USB CDC is ready)
-    if (USBSerial) {
-        USBSerial.println(full_line);
-    }
+    // 1. Output to Serial（无条件直写：USBCDC 在主机未连接时安全丢弃字节；
+    //    之前的 if(USBSerial) 判断依赖 DTR/RTS 状态，状态丢失会导致日志永久静默）
+    USBSerial.println(full_line);
 
     // 2. Store to circular buffer with spinlock protection
     taskENTER_CRITICAL(&s_log_mux);

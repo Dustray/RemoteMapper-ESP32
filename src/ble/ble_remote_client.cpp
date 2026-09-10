@@ -7,6 +7,7 @@
 #include "wifi/wifi_manager.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include "nimble/nimble/host/include/host/ble_hs.h"
 #include "esp_coexist.h"
 #include <Preferences.h>
 #include <ArduinoJson.h>
@@ -31,9 +32,20 @@ static String                          s_connected_mac = "";
 static int8_t                          s_battery_level = -1;
 static uint32_t                        s_last_batt_read_ms = 0;
 
+// 僵尸链路心跳探测：ATT 读必须对端应用层应答，是唯一可靠的存活探针
+// （5s ATVV ping 为 write-no-response，链路层 ACK 即成功，探测不出应用层死亡）。
+// 用原生异步 ble_gattc_read + 任务循环超时判定，避免同步 readValue 在死链路上永久阻塞。
+#define BATT_PROBE_INTERVAL_MS   60000  // 心跳周期
+#define BATT_PROBE_TIMEOUT_MS    10000  // 单次探测无回调即视为超时
+#define BATT_PROBE_MAX_FAILS     2      // 连续超时 N 次 -> 强制断开重连
+static uint8_t                         s_batt_fail_count = 0;
+static bool                            s_batt_probe_pending = false;
+static uint32_t                        s_batt_probe_start_ms = 0;
+
 // Asynchronous Connect Request state
 static bool                            s_do_connect = false;
 static bool                            s_manual_connect_requested = false;
+static bool                            s_reconnect_requested = false;
 static NimBLEAdvertisedDevice*         s_pending_adv_device = nullptr;
 static String                          s_pending_mac = "";
 static uint8_t                         s_pending_addr_type = BLE_ADDR_RANDOM;
@@ -96,6 +108,30 @@ static void on_battery_notify(NimBLERemoteCharacteristic* pChar, uint8_t* pData,
         s_battery_level = (int8_t)pData[0];
         app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
     }
+}
+
+// 电池心跳异步读回调：只要收到任何回调（成功或 ATT 错误应答）都证明对端应用层存活。
+// 超时无回调（僵尸链路）则不会触发本函数，由 ble_remote_task 的超时判定处理。
+static int on_batt_probe_cb(uint16_t conn_handle, const struct ble_gatt_error* error,
+                            struct ble_gatt_attr* attr, void* arg) {
+    (void)conn_handle;
+    (void)arg;
+    s_batt_probe_pending = false;
+    if (error != nullptr && error->status == 0 && attr != nullptr &&
+        attr->om != nullptr && OS_MBUF_PKTLEN(attr->om) >= 1) {
+        uint8_t lvl = 0;
+        os_mbuf_copydata(attr->om, 0, 1, &lvl);
+        s_batt_fail_count = 0;
+        if ((int8_t)lvl != s_battery_level) {
+            s_battery_level = (int8_t)lvl;
+            app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+        }
+    } else if (error != nullptr && error->status != 0) {
+        // 对端返回 ATT 错误应答 = 应用层存活（能应答），不算链路故障
+        s_batt_fail_count = 0;
+        app_log("BLE", "Battery probe ATT error rc=%d (app layer alive)", (int)error->status);
+    }
+    return 0;
 }
 
 // Control Notification Callback (ATVV Char 0x04)
@@ -326,6 +362,9 @@ class ClientCallbacks : public NimBLEClientCallbacks {
         s_char_cmd = nullptr;
         s_char_aud = nullptr;
         s_char_ctl = nullptr;
+        s_char_batt = nullptr;
+        s_batt_probe_pending = false;   // 旧链路的探测作废
+        s_batt_fail_count = 0;
         s_last_hogp_key = 0;
         key_engine_release_all(&g_key_engine, millis());
         usb_hid_keyboard_release();
@@ -352,6 +391,18 @@ static void start_scan() {
     if (s_do_connect || s_ble_state == BLE_STATE_CONNECTING || s_ble_state >= BLE_STATE_CONNECTED) {
         return;
     }
+    // 扫描已在跑则只纠正状态，避免重复发起（幂等）
+    if (NimBLEDevice::getScan()->isScanning()) {
+        s_ble_state = BLE_STATE_SCANNING;
+        return;
+    }
+    // 清理残留的连接流程：connect 超时后底层流程可能未被取消，
+    // 导致 ble_gap_disc 返回 EBUSY、扫描永远启动不了（每 10ms 重试刷屏的元凶）
+    if (ble_gap_conn_active()) {
+        int crc = ble_gap_conn_cancel();
+        app_log("BLE", "Cancelled stale connect procedure (rc=%d)", crc);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
     s_ble_state = BLE_STATE_SCANNING;
     led_indicator_set(LED_STATE_WAIT_CONNECTION);
     s_last_scan_ms = millis();
@@ -359,7 +410,19 @@ static void start_scan() {
     pScan->setActiveScan(true);
     pScan->setInterval(BLE_SCAN_INTERVAL_MS);
     pScan->setWindow(BLE_SCAN_WINDOW_MS);
-    pScan->start(0, false); // 0 = continuous scan until stopped
+    // 三参非阻塞重载：两参版本会阻塞等待首个广播包（持续扫描=永久等待），
+    // 在射频安静时会把 BLE 任务卡死
+    bool ok = pScan->start(0, (void (*)(NimBLEScanResults))nullptr, false); // 0 = continuous scan until stopped
+    if (!ok) {
+        // 启动失败：回退状态让重扫分支稍后重试（限流日志，防止 10ms 刷屏）
+        s_ble_state = BLE_STATE_DISCONNECTED;
+        static uint32_t s_last_scan_fail_log_ms = 0;
+        if (millis() - s_last_scan_fail_log_ms > 10000) {
+            s_last_scan_fail_log_ms = millis();
+            app_log("BLE", "Scan start FAILED - will retry (possible stale connection procedure)");
+        }
+        return;
+    }
     app_log("BLE", "Continuous scanning for Xiaomi Bluetooth Remote active...");
 }
 
@@ -367,7 +430,12 @@ static bool setup_services_and_handshake() {
     if (!s_client || !s_client->isConnected()) return false;
 
     // 1. Security & Bonding
-    s_client->secureConnection();
+    // HID 报告特征的 CCCD 写入通常要求加密链路；加密失败 = 永远收不到按键报文
+    if (!s_client->secureConnection()) {
+        app_log("BLE_SEC", "secureConnection FAILED - HID notifications will not flow!");
+    } else {
+        app_log("BLE_SEC", "secureConnection OK");
+    }
 
     // 2. Fast connection parameters (15ms interval)
     s_client->setDataLen(251);
@@ -382,7 +450,16 @@ static bool setup_services_and_handshake() {
 
     app_log("BLE", "Discovered %d GATT Service(s)", (int)pServices->size());
 
-    int sub_count = 0;
+    // ============ 阶段 1：纯发现（绝不穿插阻塞 GATT IO） ============
+    // NimBLE 1.4.x 中 GATT 客户端过程串行执行：发现循环中间插入 read/subscribe
+    // 等阻塞 IO 会污染过程流水线，导致后续服务的特征发现瞬间失败且静默返回空
+    // （0x1812 HID 特征全空的根因）。feat:battery 提交把电池读+订阅插进了循环。
+    // 所有匹配的指针先收集，阶段 2 统一做 IO。
+    std::vector<NimBLERemoteCharacteristic*> hogp_reports;   // 0x2A4D / 1812 通知特征
+    std::vector<NimBLERemoteCharacteristic*> notify_targets; // ab5e0003/0004 通知特征
+    NimBLERemoteCharacteristic* proto_mode = nullptr;        // 0x2A4E
+    NimBLERemoteCharacteristic* hid_ctrl = nullptr;          // 0x2A4C
+
     for (auto* pSvc : *pServices) {
         String svc_uuid = pSvc->getUUID().toString().c_str();
         svc_uuid.toLowerCase();
@@ -395,7 +472,21 @@ static bool setup_services_and_handshake() {
         }
 
         std::vector<NimBLERemoteCharacteristic*>* pChars = pSvc->getCharacteristics(true);
-        if (!pChars) continue;
+        if (!pChars || pChars->empty()) {
+            // 发现失败在 1.4.x 里是静默的（NIMBLE_LOGE 走 UART0 不可见），必须显式暴露
+            app_log("GATT", "WARNING: no characteristics discovered for %s!", svc_uuid.c_str());
+            // HID 服务重试一次（瞬时过程冲突可自愈）
+            if (svc_uuid.indexOf("1812") >= 0) {
+                vTaskDelay(pdMS_TO_TICKS(60));
+                pChars = pSvc->getCharacteristics(true);
+                if (pChars && !pChars->empty()) {
+                    app_log("GATT", "Retry OK: 0x1812 has %d characteristic(s)", (int)pChars->size());
+                } else {
+                    app_log("GATT", "Retry FAILED: 0x1812 still empty - HID reports unavailable!");
+                }
+            }
+            if (!pChars || pChars->empty()) continue;
+        }
 
         for (auto* pChar : *pChars) {
             String char_uuid = pChar->getUUID().toString().c_str();
@@ -413,60 +504,86 @@ static bool setup_services_and_handshake() {
             // Match ATVV AUD (ab5e0003)
             else if (char_uuid.indexOf("ab5e0003") >= 0) {
                 s_char_aud = pChar;
-                if (can_notif) {
-                    pChar->subscribe(true, on_audio_notify, false);
-                    sub_count++;
-                    app_log("ATVV", "Subscribed to ATVV AUD Char: %s", char_uuid.c_str());
-                }
+                if (can_notif) notify_targets.push_back(pChar);
             }
             // Match ATVV CTL (ab5e0004)
             else if (char_uuid.indexOf("ab5e0004") >= 0) {
                 s_char_ctl = pChar;
-                if (can_notif) {
-                    pChar->subscribe(true, on_ctl_notify, false);
-                    sub_count++;
-                    app_log("ATVV", "Subscribed to ATVV CTL Char: %s", char_uuid.c_str());
-                }
+                if (can_notif) notify_targets.push_back(pChar);
             }
-            // Match Protocol Mode (0x2A4E) -> write Report Mode (0x01)
+            // Match Protocol Mode (0x2A4E)
             else if (char_uuid.indexOf("2a4e") >= 0) {
-                if (can_wr) {
-                    uint8_t mode = 0x01;
-                    pChar->writeValue(&mode, 1, false);
-                    app_log("HOGP", "Set Protocol Mode to Report Mode (0x01)");
-                }
+                if (can_wr) proto_mode = pChar;
             }
-            // Match HID Control Point (0x2A4C) -> write Exit Suspend (0x00)
+            // Match HID Control Point (0x2A4C)
             else if (char_uuid.indexOf("2a4c") >= 0) {
-                if (can_wr) {
-                    uint8_t cp = 0x00;
-                    pChar->writeValue(&cp, 1, false);
-                }
+                if (can_wr) hid_ctrl = pChar;
             }
             // Match HOGP Report (0x2A4D) or any notify char in 0x1812 service
             else if (char_uuid.indexOf("2a4d") >= 0 || svc_uuid.indexOf("1812") >= 0) {
-                if (can_notif || can_ind) {
-                    pChar->subscribe(true, on_hogp_report_notify, false);
-                    sub_count++;
-                    app_log("HOGP", "Subscribed to Report Char: %s", char_uuid.c_str());
-                }
+                if (can_notif || can_ind) hogp_reports.push_back(pChar);
             }
-            // Match Battery Level (0x2A19) -> initial read + subscribe for updates
+            // Match Battery Level (0x2A19)
             else if (char_uuid.indexOf("2a19") >= 0) {
                 s_char_batt = pChar;
-                NimBLEAttValue val = pChar->readValue();
-                if (val.length() >= 1) {
-                    s_battery_level = (int8_t)val[0];
-                    app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
-                }
-                if (can_notif) {
-                    pChar->subscribe(true, on_battery_notify, false);
-                    sub_count++;
-                    app_log("BLE", "Subscribed to Battery Level Char");
-                }
-                s_last_batt_read_ms = millis();
             }
         }
+    }
+
+    app_log("BLE", "Discovery done: %d report char(s), cmd=%s, aud=%s, ctl=%s, batt=%s",
+            (int)hogp_reports.size(),
+            s_char_cmd ? "Y" : "N", s_char_aud ? "Y" : "N",
+            s_char_ctl ? "Y" : "N", s_char_batt ? "Y" : "N");
+
+    if (hogp_reports.empty()) {
+        app_log("HOGP", "No report characteristic found - button presses will NOT work!");
+    }
+
+    // ============ 阶段 2：统一执行阻塞 IO（读 / 写 / 订阅） ============
+    int sub_count = 0;
+
+    // HID Control Point -> Exit Suspend
+    if (hid_ctrl) {
+        uint8_t cp = 0x00;
+        hid_ctrl->writeValue(&cp, 1, false);
+    }
+    // Protocol Mode -> Report Mode (0x01)
+    if (proto_mode) {
+        uint8_t mode = 0x01;
+        proto_mode->writeValue(&mode, 1, false);
+        app_log("HOGP", "Set Protocol Mode to Report Mode (0x01)");
+    }
+    // HOGP Report CCCD 订阅（HID 报文的入口，失败则按键无反应）
+    for (auto* pChar : hogp_reports) {
+        bool sub_ok = pChar->subscribe(true, on_hogp_report_notify, false);
+        sub_count++;
+        app_log("HOGP", "Subscribe Report Char %s: %s",
+                pChar->getUUID().toString().c_str(), sub_ok ? "ok" : "FAILED (CCCD rejected)");
+    }
+    // ATVV AUD/CTL CCCD 订阅
+    for (auto* pChar : notify_targets) {
+        if (pChar == s_char_aud) {
+            pChar->subscribe(true, on_audio_notify, false);
+            app_log("ATVV", "Subscribed to ATVV AUD Char");
+        } else {
+            pChar->subscribe(true, on_ctl_notify, false);
+            app_log("ATVV", "Subscribed to ATVV CTL Char");
+        }
+        sub_count++;
+    }
+    // 电池：初始读 + 订阅 + 心跳状态复位
+    if (s_char_batt) {
+        NimBLEAttValue val = s_char_batt->readValue();
+        if (val.length() >= 1) {
+            s_battery_level = (int8_t)val[0];
+            app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+        }
+        bool sub_ok = s_char_batt->subscribe(true, on_battery_notify, false);
+        sub_count++;
+        app_log("BLE", "Battery Level subscribe: %s", sub_ok ? "ok" : "FAILED");
+        s_last_batt_read_ms = millis();
+        s_batt_fail_count = 0;      // 新链路，重置僵尸探测计数
+        s_batt_probe_pending = false;
     }
 
     app_log("BLE", "Total Subscribed Characteristic(s): %d", sub_count);
@@ -799,6 +916,17 @@ void ble_remote_task(void) {
 
     check_foreground_scan_complete();
 
+    // 0. 处理外部重连请求（在 BLE 任务上下文串行执行，避免跨任务并发崩溃）
+    if (s_reconnect_requested) {
+        s_reconnect_requested = false;
+        if (s_client && s_client->isConnected()) {
+            app_log("BLE", "Reconnect request -> disconnecting current link");
+            s_client->disconnect();   // onDisconnect 回调里会 start_scan()
+        } else {
+            start_scan();
+        }
+    }
+
     // 1. Process asynchronous connection requests from FreeRTOS task
     //    Manual MAC connection has priority over auto-scan advertisement matching.
     if (s_do_connect || s_manual_connect_requested) {
@@ -857,13 +985,32 @@ void ble_remote_task(void) {
             }
         }
 
-        // 5. Battery re-read every 60s (some remotes rarely notify on change)
-        if (s_char_batt != nullptr && now - s_last_batt_read_ms > 60000) {
-            s_last_batt_read_ms = now;
-            NimBLEAttValue val = s_char_batt->readValue();
-            if (val.length() >= 1 && (int8_t)val[0] != s_battery_level) {
-                s_battery_level = (int8_t)val[0];
-                app_log("BLE", "Battery level: %d%%", (int)s_battery_level);
+        // 5. Battery heartbeat every 60s（异步 ATT 读 = 僵尸链路探针）。
+        //    5s ATVV ping 是 write-no-response 探测不出应用层死亡；无应答的读可以。
+        //    连续 2 次超时 -> 强制断开重扫重连，实现僵尸链路自愈。
+        if (s_char_batt != nullptr) {
+            if (s_batt_probe_pending) {
+                if (now - s_batt_probe_start_ms > BATT_PROBE_TIMEOUT_MS) {
+                    s_batt_probe_pending = false;
+                    s_batt_fail_count++;
+                    app_log("BLE", "Battery heartbeat timeout (%d/%d) - zombie link suspected",
+                            (int)s_batt_fail_count, (int)BATT_PROBE_MAX_FAILS);
+                    if (s_batt_fail_count >= BATT_PROBE_MAX_FAILS) {
+                        s_batt_fail_count = 0;
+                        app_log("BLE", "Forcing reconnect to recover stale link");
+                        ble_remote_trigger_reconnect();
+                    }
+                }
+            } else if (now - s_last_batt_read_ms > BATT_PROBE_INTERVAL_MS) {
+                s_last_batt_read_ms = now;
+                s_batt_probe_pending = true;
+                s_batt_probe_start_ms = now;
+                int rc = ble_gattc_read(s_client->getConnId(), s_char_batt->getHandle(),
+                                        on_batt_probe_cb, NULL);
+                if (rc != 0) {
+                    s_batt_probe_pending = false;
+                    app_log("BLE", "Battery probe start failed rc=%d", rc);
+                }
             }
         }
     }
@@ -878,11 +1025,12 @@ int8_t ble_remote_get_battery(void) {
 }
 
 void ble_remote_trigger_reconnect(void) {
-    if (s_client && s_client->isConnected()) {
-        s_client->disconnect();
-    }
+    // 只置标志，由 ble_remote_task 在 BLE 任务上下文串行执行。
+    // 此函数可能从主任务（CLI/Web）调用：直接 disconnect()/start_scan() 会与
+    // host 任务的 onDisconnect 回调并发操作扫描器和 TinyUSB，曾导致固件崩溃。
     s_do_connect = false;
-    start_scan();
+    s_manual_connect_requested = false;
+    s_reconnect_requested = true;
 }
 
 String ble_remote_scan_devices_json(void) {
@@ -937,13 +1085,21 @@ bool ble_remote_connect_mac(const String& mac_str) {
 }
 
 void ble_remote_unpair(void) {
+    // 必须删除 NimBLE 持久化的 bond（LTK），否则重连时仍拿旧密钥加密：
+    // 加密失败 -> HID CCCD 写被拒 -> 永远收不到按键报文（僵尸症状的元凶之一）
+    uint16_t bond_cnt = 0;
+    bond_cnt = (uint16_t)NimBLEDevice::getNumBonds();
+    if (bond_cnt > 0) {
+        app_log("BLE", "Deleting %d stored bond(s)...", (int)bond_cnt);
+        NimBLEDevice::deleteAllBonds();
+    }
     s_bound_mac = "";
     s_connected_name = "";
     s_connected_mac = "";
     s_ble_prefs.remove("bound_mac");
     s_ble_prefs.remove("bound_name");
     s_ble_prefs.remove("bound_type");
-    app_log("BLE", "Unpaired and cleared saved remote MAC");
+    app_log("BLE", "Unpaired: bonds + saved MAC cleared, re-pairing required");
     ble_remote_trigger_reconnect();
 }
 
